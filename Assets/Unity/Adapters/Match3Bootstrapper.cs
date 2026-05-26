@@ -53,6 +53,11 @@ namespace Match3.Unity
                     _uiManager = gameObject.AddComponent<UIManager>();
             }
 
+            // ── LeaderboardClient 생성 ──
+            var leaderboard = GetComponent<LeaderboardClient>();
+            if (leaderboard == null)
+                leaderboard = gameObject.AddComponent<LeaderboardClient>();
+
             // ── Core GameController 생성 + DI ──
             _gameController = new GameController();
             _gameController.Renderer = _boardRenderer;

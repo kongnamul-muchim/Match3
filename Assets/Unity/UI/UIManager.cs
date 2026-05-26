@@ -1,4 +1,6 @@
+using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 using Match3.Core;
@@ -14,15 +16,12 @@ namespace Match3.Unity
         {
             if (_cached != null) return _cached;
 
-            // 시도 1: LegacyRuntime (Unity built-in)
             _cached = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             if (_cached != null) return _cached;
 
-            // 시도 2: Arial
             _cached = Resources.GetBuiltinResource<Font>("Arial.ttf");
             if (_cached != null) return _cached;
 
-            // 시도 3: OS fallback (WebGL에서는 안 될 수 있음)
             try { _cached = Font.CreateDynamicFontFromOSFont("Arial", 24); } catch { }
 
             return _cached;
@@ -32,7 +31,7 @@ namespace Match3.Unity
 
 namespace Match3.Unity
 {
-    /// <summary>점수/콤보/게임오버/힌트/타이머 UI 관리</summary>
+    /// <summary>점수/콤보/게임오버/힌트/타이머/리더보드 UI 관리</summary>
     public class UIManager : MonoBehaviour
     {
         [Header("UI References")]
@@ -46,11 +45,12 @@ namespace Match3.Unity
         [Header("Hint")]
         [SerializeField] private Button _hintButton;
         [SerializeField] private Text _hintText;
-        [SerializeField] private Text _hintCountText;
 
-        [Header("Settings")]
-        [SerializeField] private float _gameTimeSeconds = 90f;
-        [SerializeField] private int _maxHints = 5;
+        [Header("Leaderboard")]
+        [SerializeField] private InputField _nameInput;
+        [SerializeField] private Button _submitButton;
+        [SerializeField] private Text _leaderboardText;
+        [SerializeField] private Text _statusText;
 
         private GameController _gameController;
         private float _timeRemaining;
@@ -58,6 +58,10 @@ namespace Match3.Unity
         private bool _hintActive;
         private bool _isGameOver;
         private bool _timerPaused;
+        private LeaderboardClient _leaderboard;
+
+        private const float GameTimeSeconds = 90f;
+        private const int MaxHints = 5;
 
         private void Awake()
         {
@@ -91,6 +95,15 @@ namespace Match3.Unity
                     "", 22, TextAnchor.LowerCenter);
                 _hintText.gameObject.SetActive(false);
             }
+
+            // 리더보드 UI
+            if (_leaderboardText == null)
+                CreateLeaderboardUI();
+
+            if (_leaderboard == null)
+                _leaderboard = GetComponentInParent<LeaderboardClient>();
+            if (_leaderboard == null)
+                _leaderboard = FindObjectOfType<LeaderboardClient>();
         }
 
         public void Initialize(GameController controller)
@@ -113,8 +126,8 @@ namespace Match3.Unity
 
         private void ResetGame()
         {
-            _timeRemaining = _gameTimeSeconds;
-            _hintCount = _maxHints;
+            _timeRemaining = GameTimeSeconds;
+            _hintCount = MaxHints;
             _hintActive = false;
             _isGameOver = false;
             _timerPaused = false;
@@ -128,7 +141,6 @@ namespace Match3.Unity
         {
             if (_isGameOver || _gameController == null) return;
 
-            // Idle이 아닐 때는 타이머 일시정지 (애니메이션 중)
             _timerPaused = !_gameController.State.CanInput;
 
             if (!_timerPaused)
@@ -184,7 +196,6 @@ namespace Match3.Unity
 
         private void OnCoreGameOver()
         {
-            // 일반 게임오버 (더 이상 이동 불가)
             if (!_isGameOver) ShowGameOverPanel("No more moves!");
         }
 
@@ -203,6 +214,8 @@ namespace Match3.Unity
             _gameOverPanel.SetActive(true);
             if (_finalScoreText != null)
                 _finalScoreText.text = $"{reason}\nFinal Score: {_gameController.Score.Score}";
+
+            ShowLeaderboard();
         }
 
         public void RestartGame()
@@ -211,6 +224,11 @@ namespace Match3.Unity
                 _gameOverPanel.SetActive(false);
 
             if (_hintActive) HideHint();
+
+            // 리더보드 UI 초기화
+            if (_statusText != null) _statusText.text = "";
+            if (_nameInput != null) _nameInput.text = "";
+            if (_submitButton != null) _submitButton.interactable = true;
 
             if (_gameController != null)
             {
@@ -275,25 +293,11 @@ namespace Match3.Unity
             if (_timerText == null) return;
 
             int seconds = Mathf.CeilToInt(_timeRemaining);
-            int min = seconds / 60;
-            int sec = seconds % 60;
-            _timerText.text = $"{min}:{sec:D2}";
-
-            // 10초 미만이면 빨간색
-            if (seconds <= 10)
-                _timerText.color = Color.Lerp(Color.red, Color.white,
-                    Mathf.PingPong(Time.time * 4f, 1f));
-            else
-                _timerText.color = Color.white;
+            _timerText.text = seconds.ToString();
+            _timerText.color = seconds <= 10 ? Color.red : Color.white;
         }
 
         // ── UI 생성 ──
-
-        private void UpdateScoreText(int score, int delta)
-        {
-            if (_scoreText != null)
-                _scoreText.text = $"Score: {score}";
-        }
 
         private Text CreateText(string name, Vector2 anchoredPos, string text, int fontSize, TextAnchor anchor)
         {
@@ -325,7 +329,7 @@ namespace Match3.Unity
             rect.anchorMin = new Vector2(1f, 0f);
             rect.anchorMax = new Vector2(1f, 0f);
             rect.anchoredPosition = new Vector2(-80, 80);
-            rect.sizeDelta = new Vector2(160, 50);
+            rect.sizeDelta = new Vector2(140, 50);
 
             var img = btnGo.GetComponent<Image>();
             img.color = new Color(0.2f, 0.6f, 0.8f);
@@ -339,9 +343,9 @@ namespace Match3.Unity
             textRect.offsetMax = Vector2.zero;
 
             var btnText = textGo.GetComponent<Text>();
-            btnText.text = "💡 Hint (5)";
+            btnText.text = "💡 Hint";
             btnText.font = FontHelper.GetDefaultFont();
-            btnText.fontSize = 22;
+            btnText.fontSize = 24;
             btnText.alignment = TextAnchor.MiddleCenter;
             btnText.color = Color.white;
 
@@ -363,13 +367,14 @@ namespace Match3.Unity
             img.color = new Color(0, 0, 0, 0.7f);
             _gameOverPanel.SetActive(false);
 
+            // Final Score Text (top area)
             var scoreGo = new GameObject("FinalScoreText", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
             scoreGo.transform.SetParent(_gameOverPanel.transform, false);
             var scoreRect = scoreGo.GetComponent<RectTransform>();
             scoreRect.anchorMin = new Vector2(0.5f, 0.5f);
             scoreRect.anchorMax = new Vector2(0.5f, 0.5f);
-            scoreRect.anchoredPosition = new Vector2(0, 30);
-            scoreRect.sizeDelta = new Vector2(400, 80);
+            scoreRect.anchoredPosition = new Vector2(0, 120);
+            scoreRect.sizeDelta = new Vector2(600, 80);
 
             _finalScoreText = scoreGo.GetComponent<Text>();
             _finalScoreText.text = "Game Over!";
@@ -378,34 +383,210 @@ namespace Match3.Unity
             _finalScoreText.alignment = TextAnchor.MiddleCenter;
             _finalScoreText.color = Color.white;
 
-            var btnGo = new GameObject("RestartButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
-            btnGo.transform.SetParent(_gameOverPanel.transform, false);
-            var btnRect = btnGo.GetComponent<RectTransform>();
-            btnRect.anchorMin = new Vector2(0.5f, 0.5f);
-            btnRect.anchorMax = new Vector2(0.5f, 0.5f);
-            btnRect.anchoredPosition = new Vector2(0, -50);
-            btnRect.sizeDelta = new Vector2(200, 50);
+            // (리더보드 UI는 CreateLeaderboardUI에서 생성)
+        }
 
-            var btnImg = btnGo.GetComponent<Image>();
-            btnImg.color = new Color(0.2f, 0.6f, 0.2f);
+        // ── 리더보드 ──
 
-            var btnTextGo = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
-            btnTextGo.transform.SetParent(btnGo.transform, false);
-            var btnTextRect = btnTextGo.GetComponent<RectTransform>();
-            btnTextRect.anchorMin = Vector2.zero;
-            btnTextRect.anchorMax = Vector2.one;
-            btnTextRect.offsetMin = Vector2.zero;
-            btnTextRect.offsetMax = Vector2.zero;
+        private void CreateLeaderboardUI()
+        {
+            // 닉네임 입력
+            var inputGo = new GameObject("NameInput", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            inputGo.transform.SetParent(_gameOverPanel.transform, false);
+            var inputRect = inputGo.GetComponent<RectTransform>();
+            inputRect.anchorMin = new Vector2(0.5f, 0.5f);
+            inputRect.anchorMax = new Vector2(0.5f, 0.5f);
+            inputRect.anchoredPosition = new Vector2(0, 65);
+            inputRect.sizeDelta = new Vector2(260, 36);
 
-            var btnText = btnTextGo.GetComponent<Text>();
-            btnText.text = "Restart";
-            btnText.font = FontHelper.GetDefaultFont();
-            btnText.fontSize = 28;
-            btnText.alignment = TextAnchor.MiddleCenter;
-            btnText.color = Color.white;
+            var inputImg = inputGo.GetComponent<Image>();
+            inputImg.color = new Color(1, 1, 1, 0.9f);
 
-            _restartButton = btnGo.GetComponent<Button>();
+            var inputField = inputGo.AddComponent<InputField>();
+            var textComp = inputGo.AddComponent<Text>();
+            textComp.font = FontHelper.GetDefaultFont();
+            textComp.fontSize = 22;
+            textComp.alignment = TextAnchor.MiddleCenter;
+            textComp.color = Color.black;
+            textComp.text = "";
+            inputField.textComponent = textComp;
+
+            var phGo = new GameObject("Placeholder", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            phGo.transform.SetParent(inputGo.transform, false);
+            var phRect = phGo.GetComponent<RectTransform>();
+            phRect.anchorMin = Vector2.zero;
+            phRect.anchorMax = Vector2.one;
+            phRect.offsetMin = Vector2.zero;
+            phRect.offsetMax = Vector2.zero;
+            var phText = phGo.GetComponent<Text>();
+            phText.text = "닉네임 입력";
+            phText.font = FontHelper.GetDefaultFont();
+            phText.fontSize = 22;
+            phText.alignment = TextAnchor.MiddleCenter;
+            phText.color = new Color(0.5f, 0.5f, 0.5f);
+            inputField.placeholder = phText;
+
+            _nameInput = inputField;
+
+            // 상태 텍스트
+            _statusText = CreateText("StatusText", new Vector2(0, 30), "", 20, TextAnchor.MiddleCenter);
+            _statusText.transform.SetParent(_gameOverPanel.transform, false);
+
+            // Submit 버튼
+            var subGo = new GameObject("SubmitButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            subGo.transform.SetParent(_gameOverPanel.transform, false);
+            var subRect = subGo.GetComponent<RectTransform>();
+            subRect.anchorMin = new Vector2(0.5f, 0.5f);
+            subRect.anchorMax = new Vector2(0.5f, 0.5f);
+            subRect.anchoredPosition = new Vector2(-70, -5);
+            subRect.sizeDelta = new Vector2(140, 44);
+            var subImg = subGo.GetComponent<Image>();
+            subImg.color = new Color(0.2f, 0.6f, 0.8f);
+            var subText = CreateChildText(subGo, "🏆 등록", 24, Color.white);
+            _submitButton = subGo.GetComponent<Button>();
+            _submitButton.onClick.AddListener(OnSubmitScore);
+
+            // Restart 버튼
+            var rstGo = new GameObject("RestartButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            rstGo.transform.SetParent(_gameOverPanel.transform, false);
+            var rstRect = rstGo.GetComponent<RectTransform>();
+            rstRect.anchorMin = new Vector2(0.5f, 0.5f);
+            rstRect.anchorMax = new Vector2(0.5f, 0.5f);
+            rstRect.anchoredPosition = new Vector2(80, -5);
+            rstRect.sizeDelta = new Vector2(140, 44);
+            var rstImg = rstGo.GetComponent<Image>();
+            rstImg.color = new Color(0.2f, 0.6f, 0.2f);
+            var rstText = CreateChildText(rstGo, "🔄 Restart", 24, Color.white);
+            _restartButton = rstGo.GetComponent<Button>();
             _restartButton.onClick.AddListener(RestartGame);
+
+            // 랭킹 텍스트 영역
+            var rankGo = new GameObject("LeaderboardText", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            rankGo.transform.SetParent(_gameOverPanel.transform, false);
+            var rankRect = rankGo.GetComponent<RectTransform>();
+            rankRect.anchorMin = new Vector2(0.5f, 0.5f);
+            rankRect.anchorMax = new Vector2(0.5f, 0.5f);
+            rankRect.anchoredPosition = new Vector2(0, -90);
+            rankRect.sizeDelta = new Vector2(400, 180);
+
+            _leaderboardText = rankGo.GetComponent<Text>();
+            _leaderboardText.font = FontHelper.GetDefaultFont();
+            _leaderboardText.fontSize = 18;
+            _leaderboardText.alignment = TextAnchor.UpperCenter;
+            _leaderboardText.color = new Color(0.9f, 0.9f, 0.9f);
+            _leaderboardText.text = "";
+        }
+
+        private Text CreateChildText(GameObject parent, string text, int fontSize, Color color)
+        {
+            var go = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            go.transform.SetParent(parent.transform, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            var txt = go.GetComponent<Text>();
+            txt.text = text;
+            txt.font = FontHelper.GetDefaultFont();
+            txt.fontSize = fontSize;
+            txt.alignment = TextAnchor.MiddleCenter;
+            txt.color = color;
+            return txt;
+        }
+
+        // ── 리더보드 API ──
+
+        private void ShowLeaderboard()
+        {
+            if (_leaderboardText == null) return;
+            _leaderboardText.text = "🏆 TOP 10 로딩 중...";
+            StartCoroutine(LoadLeaderboardRoutine());
+        }
+
+        private IEnumerator LoadLeaderboardRoutine()
+        {
+            if (_leaderboard == null)
+            {
+                _leaderboardText.text = "⚠️ LeaderboardClient 없음";
+                yield break;
+            }
+
+            bool done = false;
+            _leaderboard.GetLeaderboard(10, (response) =>
+            {
+                if (response != null && response.items != null && response.items.Count > 0)
+                {
+                    var sb = new StringBuilder();
+                    sb.AppendLine("<b>━━━ TOP 10 ━━━</b>");
+                    for (int i = 0; i < response.items.Count; i++)
+                    {
+                        var e = response.items[i];
+                        string medal = i == 0 ? "🥇" : i == 1 ? "🥈" : i == 2 ? "🥉" : $"  {i + 1}.";
+                        sb.AppendLine($"{medal} {e.player_name,-12} {e.score,8:N0}");
+                    }
+                    _leaderboardText.text = sb.ToString();
+                }
+                else
+                {
+                    _leaderboardText.text = "🏆 아직 등록된 점수가 없습니다!\n첫 기록의 주인공이 되어보세요!";
+                }
+                done = true;
+            }, (error) =>
+            {
+                _leaderboardText.text = $"⚠️ 로드 실패: {error}";
+                done = true;
+            });
+
+            yield return new WaitUntil(() => done);
+        }
+
+        private void OnSubmitScore()
+        {
+            if (_leaderboard == null || _gameController == null) return;
+            if (_submitButton != null) _submitButton.interactable = false;
+
+            string name = _nameInput != null ? _nameInput.text.Trim() : "";
+            if (string.IsNullOrEmpty(name))
+                name = "Player";
+
+            int score = _gameController.Score.Score;
+            int combo = _gameController.Score.ComboMultiplier;
+            int moves = _gameController.Score.TotalMoves;
+
+            if (_statusText != null)
+                _statusText.text = "📤 점수 제출 중...";
+            if (_leaderboardText != null)
+                _leaderboardText.text = "📤 점수 제출 중...";
+
+            StartCoroutine(SubmitScoreRoutine(name, score, combo, moves));
+        }
+
+        private IEnumerator SubmitScoreRoutine(string name, int score, int combo, int moves)
+        {
+            bool done = false;
+            _leaderboard.SubmitScore(name, score, combo, moves,
+                (entry) =>
+                {
+                    if (_statusText != null)
+                        _statusText.text = $"✅ 등록 완료! 🏆 Rank #{entry.rank}";
+                    if (_submitButton != null) _submitButton.interactable = false;
+
+                    StartCoroutine(LoadLeaderboardRoutine());
+                    done = true;
+                },
+                (error) =>
+                {
+                    if (_statusText != null)
+                        _statusText.text = $"❌ 제출 실패";
+                    if (_submitButton != null) _submitButton.interactable = true;
+                    if (_leaderboardText != null)
+                        _leaderboardText.text = $"⚠️ 오류: {error}";
+                    done = true;
+                });
+
+            yield return new WaitUntil(() => done);
         }
     }
 }
