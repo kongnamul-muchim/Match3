@@ -401,8 +401,12 @@ namespace Match3.Unity
 
         private void CreateLeaderboardUI()
         {
-            // 닉네임 입력
-            var inputGo = new GameObject("NameInput", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            // 방어코드: _gameOverPanel이 null이면 먼저 생성
+            if (_gameOverPanel == null)
+                CreateGameOverPanel();
+
+            // 닉네임 입력 (InputField와 Text는 같은 GameObject에 AddComponent 금지)
+            var inputGo = new GameObject("NameInput", typeof(RectTransform));
             inputGo.transform.SetParent(_gameOverPanel.transform, false);
             var inputRect = inputGo.GetComponent<RectTransform>();
             inputRect.anchorMin = new Vector2(0.5f, 0.5f);
@@ -410,19 +414,30 @@ namespace Match3.Unity
             inputRect.anchoredPosition = new Vector2(0, 65);
             inputRect.sizeDelta = new Vector2(260, 36);
 
-            var inputImg = inputGo.GetComponent<Image>();
+            var inputImg = inputGo.AddComponent<Image>();
             inputImg.color = new Color(1, 1, 1, 0.9f);
 
-            var inputField = inputGo.AddComponent<InputField>();
-            var textComp = inputGo.AddComponent<Text>();
+            // InputField 전용 자식 Text 오브젝트
+            var textGo = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            textGo.transform.SetParent(inputGo.transform, false);
+            var textRect = textGo.GetComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+
+            var textComp = textGo.GetComponent<Text>();
             var defaultFont = FontHelper.GetDefaultFont();
             if (defaultFont != null) textComp.font = defaultFont;
             textComp.fontSize = 22;
             textComp.alignment = TextAnchor.MiddleCenter;
             textComp.color = Color.black;
             textComp.text = "";
+
+            var inputField = inputGo.AddComponent<InputField>();
             inputField.textComponent = textComp;
 
+            // Placeholder
             var phGo = new GameObject("Placeholder", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
             phGo.transform.SetParent(inputGo.transform, false);
             var phRect = phGo.GetComponent<RectTransform>();
