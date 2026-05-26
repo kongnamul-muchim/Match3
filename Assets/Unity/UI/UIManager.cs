@@ -69,9 +69,11 @@ namespace Match3.Unity
             {
                 _scoreText = CreateText("ScoreText", Vector2.zero, "Score: 0", 36, TextAnchor.UpperLeft);
                 var rt = _scoreText.GetComponent<RectTransform>();
+                rt.pivot = new Vector2(0, 1);
                 rt.anchorMin = new Vector2(0, 1);
                 rt.anchorMax = new Vector2(0, 1);
                 rt.anchoredPosition = new Vector2(20, -20);
+                rt.sizeDelta = new Vector2(300, 50);
             }
 
             if (_timerText == null)
@@ -79,9 +81,11 @@ namespace Match3.Unity
                 _timerText = CreateText("TimerText", Vector2.zero, "90", 40, TextAnchor.UpperRight);
                 _timerText.color = Color.white;
                 var rt = _timerText.GetComponent<RectTransform>();
+                rt.pivot = new Vector2(1, 1);
                 rt.anchorMin = new Vector2(1, 1);
                 rt.anchorMax = new Vector2(1, 1);
                 rt.anchoredPosition = new Vector2(-20, -20);
+                rt.sizeDelta = new Vector2(100, 50);
             }
 
             if (_comboText == null)
@@ -89,6 +93,7 @@ namespace Match3.Unity
                 _comboText = CreateText("ComboText", Vector2.zero, "", 28, TextAnchor.UpperCenter);
                 _comboText.gameObject.SetActive(false);
                 var rt = _comboText.GetComponent<RectTransform>();
+                rt.pivot = new Vector2(0.5f, 1);
                 rt.anchorMin = new Vector2(0.5f, 1);
                 rt.anchorMax = new Vector2(0.5f, 1);
                 rt.anchoredPosition = new Vector2(0, -60);
@@ -105,9 +110,10 @@ namespace Match3.Unity
                 _hintText = CreateText("HintText", Vector2.zero, "", 22, TextAnchor.LowerCenter);
                 _hintText.gameObject.SetActive(false);
                 var rt = _hintText.GetComponent<RectTransform>();
+                rt.pivot = new Vector2(0.5f, 0);
                 rt.anchorMin = new Vector2(0.5f, 0);
                 rt.anchorMax = new Vector2(0.5f, 0);
-                rt.anchoredPosition = new Vector2(0, 40);
+                rt.anchoredPosition = new Vector2(0, 60);
             }
 
             // 리더보드 UI
