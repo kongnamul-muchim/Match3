@@ -165,22 +165,21 @@ namespace Match3.Unity
             Vector3 direction = (basePosB - basePosA).normalized;
             Color brightColor = Color.Lerp(Color.white, GetGemColor(gemA.Type), 0.3f);
 
-            float t = 0f;
+                float t = 0f;
             while (true)
             {
-                float wave = Mathf.Sin(t * 3.5f);
-                float pulse = wave * 0.5f + 0.5f;          // 0~1
-                float move = Mathf.Sin(t * 2.8f) * 0.2f;   // -0.2~0.2
-                float scale = 1f + 0.25f * pulse;          // 1.0x ↔ 1.25x
+                float wave = Mathf.Abs(Mathf.Sin(t * 2.5f)); // 0↔1↔0
+                float scale = 1f + 0.25f * wave;            // 1.0x ↔ 1.25x
+                float move = wave * 0.25f;                  // 0→0.25→0
 
-                // A만 움직임 (B는 펄스만)
+                // A만 B 방향으로 움직였다 돌아옴
                 gemA.SpriteRenderer.color = brightColor;
                 gemA.transform.localScale = Vector3.one * scale;
                 gemA.transform.position = basePosA + direction * move;
 
                 gemB.SpriteRenderer.color = brightColor;
                 gemB.transform.localScale = Vector3.one * scale;
-                gemB.transform.position = basePosB; // 제자리
+                gemB.transform.position = basePosB;
 
                 t += Time.deltaTime;
                 yield return null;
