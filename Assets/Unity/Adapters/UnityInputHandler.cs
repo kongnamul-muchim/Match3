@@ -39,14 +39,28 @@ namespace Match3.Unity
             return Camera.main.ScreenToWorldPoint(pos);
         }
 
+        private void Start()
+        {
+            Debug.Log($"[UnityInputHandler] Start() — Camera.main={(Camera.main != null ? Camera.main.transform.position.ToString() : "NULL")}");
+        }
+
         private void Update()
         {
-            if (!_enabled) return;
+            if (!_enabled)
+            {
+                // 한 번만 로그
+                if (Input.GetMouseButtonDown(0))
+                    Debug.Log("[UnityInputHandler] ❌ _enabled == false — 입력 무시됨");
+                return;
+            }
 
             if (Input.GetMouseButtonDown(0))
             {
                 _dragStartWorld = ScreenToWorldPos();
+                Debug.Log($"[UnityInputHandler] MouseDown — screen={Input.mousePosition} → world={_dragStartWorld}");
+
                 _startTile = WorldToTile(_dragStartWorld);
+                Debug.Log($"[UnityInputHandler] WorldToTile → {(_startTile?.ToString() ?? "null")}");
                 _isDragging = false;
             }
 
@@ -57,21 +71,28 @@ namespace Match3.Unity
 
                 if (dragDist >= _dragThreshold)
                 {
+                    if (!_isDragging)
+                        Debug.Log($"[UnityInputHandler] Drag started — dist={dragDist:F2}");
                     _isDragging = true;
                 }
             }
 
             if (Input.GetMouseButtonUp(0) && _startTile.HasValue)
             {
+                Debug.Log($"[UnityInputHandler] MouseUp — isDragging={_isDragging}");
+
                 if (_isDragging)
                 {
                     Vector2 endWorld = ScreenToWorldPos();
                     Vector2 dragDir = endWorld - _dragStartWorld;
+                    Debug.Log($"[UnityInputHandler] Drag dir={dragDir} (mag={dragDir.magnitude:F2})");
 
                     var endTile = GetAdjacentInDirection(_startTile.Value, dragDir);
+                    Debug.Log($"[UnityInputHandler] Adjacent tile → {endTile?.ToString() ?? "null"}");
 
                     if (endTile.HasValue && IsInBounds(endTile.Value.Row, endTile.Value.Col))
                     {
+                        Debug.Log($"[UnityInputHandler] ✅ Firing OnTileSwapped: {_startTile.Value} → {endTile.Value}");
                         OnTileSwapped?.Invoke(_startTile.Value, endTile.Value);
                     }
                 }

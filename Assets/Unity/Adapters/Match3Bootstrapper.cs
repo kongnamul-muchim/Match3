@@ -51,13 +51,22 @@ namespace Match3.Unity
             _gameController.Input = _inputHandler;
 
             // ── Input 이벤트 연결 ──
-            _inputHandler.OnTileSwapped += (a, b) => _gameController.OnPlayerSwap(a, b);
+            _inputHandler.OnTileSwapped += (a, b) =>
+            {
+                Debug.Log($"[Bootstrapper] OnTileSwapped! from=({a.Row},{a.Col}) to=({b.Row},{b.Col})");
+                Debug.Log($"[Bootstrapper]   Renderer= {(_gameController.Renderer != null ? "✅" : "❌")}");
+                Debug.Log($"[Bootstrapper]   Input=    {(_gameController.Input != null ? "✅" : "❌")}");
+                Debug.Log($"[Bootstrapper]   State=    {_gameController.State.CurrentState}");
+                _gameController.OnPlayerSwap(a, b);
+            };
 
             // ── UI 초기화 ──
             _uiManager.Initialize(_gameController);
 
             // ── 게임 시작! ──
+            Debug.Log($"[Bootstrapper] Before StartGame — Renderer={(_gameController.Renderer != null ? "✅" : "❌")} Input={(_gameController.Input != null ? "✅" : "❌")}");
             _gameController.StartGame();
+            Debug.Log($"[Bootstrapper] After StartGame — State={_gameController.State.CurrentState} Score={_gameController.Score.Score}");
 
             Debug.Log("[Match3Bootstrapper] Game started!");
         }
