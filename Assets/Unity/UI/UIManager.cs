@@ -174,6 +174,12 @@ namespace Match3.Unity
 
         // ── 점수 / 콤보 ──
 
+        private void UpdateScoreText(int score, int delta)
+        {
+            if (_scoreText != null)
+                _scoreText.text = $"Score: {score}";
+        }
+
         private void OnScoreChanged(int newScore, int delta)
         {
             UpdateScoreText(newScore, delta);
