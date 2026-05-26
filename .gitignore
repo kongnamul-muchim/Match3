@@ -1,0 +1,46 @@
+# ====================
+# Unity
+# ====================
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Mm]emoryCaptures/
+
+# Visual Studio / Rider
+/[Uu]ser[Ss]ettings/
+*.csproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.userosscache
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+
+# JetBrains Rider
+/.idea/
+
+# VS Code
+/.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Unity generated
+/Assets/AssetStoreTools*
+/Assets/UIElementsSchema/
+
+# Crash reports
+/crashlytics-*.log
+
+# Build reports
+/Assets/StreamingAssets/UnityBuildReport*
+
+# Coverage
+/coverage/
