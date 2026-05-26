@@ -1,10 +1,11 @@
 using System;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using Match3.Core;
 
 namespace Match3.Unity
 {
-    /// <summary>IInputHandler Unity 구현 — 마우스/터치 드래그</summary>
+    /// <summary>IInputHandler Unity 구현 — Input System API 사용</summary>
     public class UnityInputHandler : MonoBehaviour, IInputHandler
     {
         [Header("Settings")]
@@ -29,13 +30,14 @@ namespace Match3.Unity
         private Vector2 _dragStartWorld;
         private TilePosition? _startTile;
         private bool _isDragging;
+        private bool _wasPressed; // 이전 프레임 상태 추적용
+        private bool _isPressed;
 
         private float _cameraZDist = 10f; // Camera z=-10, game plane z=0
 
-        private Vector3 ScreenToWorldPos()
+        private Vector3 ScreenToWorldPos(Vector2 screenPos)
         {
-            var pos = Input.mousePosition;
-            pos.z = _cameraZDist;
+            var pos = new Vector3(screenPos.x, screenPos.y, _cameraZDist);
             return Camera.main.ScreenToWorldPoint(pos);
         }
 
@@ -49,43 +51,53 @@ namespace Match3.Unity
 
         private void Update()
         {
+            // 마우스 상태 읽기
+            var mouse = Mouse.current;
+            if (mouse == null) return;
+
+            _wasPressed = _isPressed;
+            _isPressed = mouse.leftButton.isPressed;
+            bool justPressed = _isPressed && !_wasPressed;
+            bool justReleased = !_isPressed && _wasPressed;
+
             if (!_enabled)
             {
-                if (Input.GetMouseButtonDown(0))
-                    FileLogger.Log("[UnityInputHandler] _enabled == false — 입력 무시됨");
+                if (justPressed)
+                    FileLogger.Log("[Input] _enabled == false — 입력 무시됨");
                 return;
             }
 
-            if (Input.GetMouseButtonDown(0))
+            Vector2 screenPos = mouse.position.ReadValue();
+
+            if (justPressed)
             {
-                _dragStartWorld = ScreenToWorldPos();
-                FileLogger.Log($"[Input] MouseDown — screen={Input.mousePosition} world=({_dragStartWorld.x:F2},{_dragStartWorld.y:F2})");
+                _dragStartWorld = ScreenToWorldPos(screenPos);
+                FileLogger.Log($"[Input] MouseDown — screen={screenPos} world=({_dragStartWorld.x:F2},{_dragStartWorld.y:F2})");
 
                 _startTile = WorldToTile(_dragStartWorld);
                 FileLogger.Log($"[Input] WorldToTile → {(_startTile?.ToString() ?? "null")}");
                 _isDragging = false;
             }
 
-            if (Input.GetMouseButton(0) && _startTile.HasValue)
+            if (_isPressed && _startTile.HasValue)
             {
-                Vector2 currentWorld = ScreenToWorldPos();
+                Vector2 currentWorld = ScreenToWorldPos(screenPos);
                 float dragDist = Vector2.Distance(currentWorld, _dragStartWorld);
 
-                if (dragDist >= _dragThreshold)
+                if (dragDist >= _dragThreshold && !_isDragging)
                 {
-                    if (!_isDragging)
-                        FileLogger.Log($"[Input] Drag started — dist={dragDist:F2}");
+                    FileLogger.Log($"[Input] Drag started — dist={dragDist:F2}");
                     _isDragging = true;
                 }
             }
 
-            if (Input.GetMouseButtonUp(0) && _startTile.HasValue)
+            if (justReleased && _startTile.HasValue)
             {
                 FileLogger.Log($"[Input] MouseUp — isDragging={_isDragging}");
 
                 if (_isDragging)
                 {
-                    Vector2 endWorld = ScreenToWorldPos();
+                    Vector2 endWorld = ScreenToWorldPos(screenPos);
                     Vector2 dragDir = endWorld - _dragStartWorld;
                     FileLogger.Log($"[Input] Drag dir=({dragDir.x:F2},{dragDir.y:F2}) mag={dragDir.magnitude:F2}");
 
@@ -126,7 +138,6 @@ namespace Match3.Unity
 
             if (ax > ay)
             {
-                // 가로 방향
                 int dc = direction.x > 0 ? 1 : -1;
                 int nc = from.Col + dc;
                 if (IsInBounds(from.Row, nc))
@@ -134,7 +145,6 @@ namespace Match3.Unity
             }
             else
             {
-                // 세로 방향
                 int dr = direction.y > 0 ? 1 : -1;
                 int nr = from.Row + dr;
                 if (IsInBounds(nr, from.Col))
