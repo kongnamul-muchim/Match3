@@ -100,15 +100,17 @@ namespace Match3.Unity
             if (_leaderboardText == null)
                 CreateLeaderboardUI();
 
-            if (_leaderboard == null)
-                _leaderboard = GetComponentInParent<LeaderboardClient>();
-            if (_leaderboard == null)
-                _leaderboard = FindObjectOfType<LeaderboardClient>();
         }
 
         public void Initialize(GameController controller)
         {
             _gameController = controller;
+
+            // Bootstrapper가 LeaderboardClient를 생성한 후에 찾음 (Awake 순서 이슈 방지)
+            if (_leaderboard == null)
+                _leaderboard = GetComponentInParent<LeaderboardClient>();
+            if (_leaderboard == null)
+                _leaderboard = FindObjectOfType<LeaderboardClient>();
 
             _gameController.Score.OnScoreChanged += OnScoreChanged;
             _gameController.OnChainCombo += OnChainCombo;
