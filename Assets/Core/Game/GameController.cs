@@ -137,10 +137,11 @@ namespace Match3.Core
                 // 새 타일 드롭 정보 미리 생성
                 _cascadeHandler.PrepareNewTileDrops();
                 var newTileData = _cascadeHandler.GetNewTileDropData();
+                var newTiles = newTileData.ConvertAll(d => (d.drop.To, d.type));
                 var newTileDrops = newTileData.ConvertAll(d => d.drop);
 
                 // 전체 드롭 한번에 애니메이션 (기존 타일 + 새 타일)
-                Renderer?.AnimateDrop(drops, newTileData, () =>
+                Renderer?.AnimateDrop(drops, newTiles, () =>
                 {
                     // 보드 데이터에 새 타일 반영
                     _cascadeHandler.CommitNewTileDrops();
