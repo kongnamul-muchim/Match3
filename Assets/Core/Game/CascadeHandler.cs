@@ -75,31 +75,32 @@ namespace Match3.Core
             return result;
         }
 
-        /// <summary>중력 낙하: 빈 칸 위에 있는 타일들을 아래로 내림</summary>
+        /// <summary>중력 낙하: 타일들이 아래(row 0)로 내려감</summary>
         public List<DropInfo> ApplyGravity()
         {
             var drops = new List<DropInfo>();
 
             for (int c = 0; c < Board.Cols; c++)
             {
-                int writeRow = Board.Rows - 1;
+                int writeRow = 0; // row 0 = bottom of screen
 
-                // 아래에서 위로 스캔하면서 타일을 아래로 당김
-                for (int r = Board.Rows - 1; r >= 0; r--)
+                // 위에서 아래로 스캔하면서 타일을 아래로 당김
+                for (int r = 0; r < Board.Rows; r++)
                 {
                     if (!_board[r, c].IsEmpty)
                     {
                         if (r != writeRow)
                         {
-                            int dropDistance = writeRow - r;
+                            // r > writeRow, 타일이 아래로 이동
+                            int dropDistance = r - writeRow;
                             _board.Swap(new TilePosition(r, c), new TilePosition(writeRow, c));
                             drops.Add(new DropInfo(
-                                new TilePosition(r, c),
-                                new TilePosition(writeRow, c),
+                                new TilePosition(r, c),     // 원래 위치
+                                new TilePosition(writeRow, c), // 도착 위치 (더 아래)
                                 dropDistance
                             ));
                         }
-                        writeRow--;
+                        writeRow++;
                     }
                 }
             }
