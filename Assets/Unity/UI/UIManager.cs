@@ -504,8 +504,8 @@ namespace Match3.Unity
             var rankRect = rankGo.GetComponent<RectTransform>();
             rankRect.anchorMin = new Vector2(0.5f, 0.5f);
             rankRect.anchorMax = new Vector2(0.5f, 0.5f);
-            rankRect.anchoredPosition = new Vector2(0, -90);
-            rankRect.sizeDelta = new Vector2(400, 180);
+            rankRect.anchoredPosition = new Vector2(0, -160);
+            rankRect.sizeDelta = new Vector2(400, 200);
 
             _leaderboardText = rankGo.GetComponent<Text>();
             var lbFont = FontHelper.GetDefaultFont();
