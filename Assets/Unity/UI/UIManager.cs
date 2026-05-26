@@ -66,21 +66,32 @@ namespace Match3.Unity
         private void Awake()
         {
             if (_scoreText == null)
-                _scoreText = CreateText("ScoreText", new Vector2(-Screen.width * 0.4f, Screen.height * 0.45f),
-                    "Score: 0", 36, TextAnchor.UpperLeft);
+            {
+                _scoreText = CreateText("ScoreText", Vector2.zero, "Score: 0", 36, TextAnchor.UpperLeft);
+                var rt = _scoreText.GetComponent<RectTransform>();
+                rt.anchorMin = new Vector2(0, 1);
+                rt.anchorMax = new Vector2(0, 1);
+                rt.anchoredPosition = new Vector2(20, -20);
+            }
 
             if (_timerText == null)
             {
-                _timerText = CreateText("TimerText", new Vector2(Screen.width * 0.4f, Screen.height * 0.45f),
-                    "90", 40, TextAnchor.UpperRight);
+                _timerText = CreateText("TimerText", Vector2.zero, "90", 40, TextAnchor.UpperRight);
                 _timerText.color = Color.white;
+                var rt = _timerText.GetComponent<RectTransform>();
+                rt.anchorMin = new Vector2(1, 1);
+                rt.anchorMax = new Vector2(1, 1);
+                rt.anchoredPosition = new Vector2(-20, -20);
             }
 
             if (_comboText == null)
             {
-                _comboText = CreateText("ComboText", new Vector2(0, Screen.height * 0.35f),
-                    "", 28, TextAnchor.UpperCenter);
+                _comboText = CreateText("ComboText", Vector2.zero, "", 28, TextAnchor.UpperCenter);
                 _comboText.gameObject.SetActive(false);
+                var rt = _comboText.GetComponent<RectTransform>();
+                rt.anchorMin = new Vector2(0.5f, 1);
+                rt.anchorMax = new Vector2(0.5f, 1);
+                rt.anchoredPosition = new Vector2(0, -60);
             }
 
             if (_gameOverPanel == null)
@@ -91,9 +102,12 @@ namespace Match3.Unity
 
             if (_hintText == null)
             {
-                _hintText = CreateText("HintText", new Vector2(0, -Screen.height * 0.4f),
-                    "", 22, TextAnchor.LowerCenter);
+                _hintText = CreateText("HintText", Vector2.zero, "", 22, TextAnchor.LowerCenter);
                 _hintText.gameObject.SetActive(false);
+                var rt = _hintText.GetComponent<RectTransform>();
+                rt.anchorMin = new Vector2(0.5f, 0);
+                rt.anchorMax = new Vector2(0.5f, 0);
+                rt.anchoredPosition = new Vector2(0, 40);
             }
 
             // 리더보드 UI
