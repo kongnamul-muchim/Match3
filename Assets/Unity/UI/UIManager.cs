@@ -1,35 +1,49 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.InputSystem;
 using Match3.Core;
 
 namespace Match3.Unity
 {
-    /// <summary>점수/콤보/게임오버/힌트 UI 관리</summary>
+    /// <summary>점수/콤보/게임오버/힌트/타이머 UI 관리</summary>
     public class UIManager : MonoBehaviour
     {
         [Header("UI References")]
         [SerializeField] private Text _scoreText;
         [SerializeField] private Text _comboText;
+        [SerializeField] private Text _timerText;
         [SerializeField] private GameObject _gameOverPanel;
         [SerializeField] private Text _finalScoreText;
         [SerializeField] private Button _restartButton;
+
         [Header("Hint")]
         [SerializeField] private Button _hintButton;
         [SerializeField] private Text _hintText;
+        [SerializeField] private Text _hintCountText;
+
+        [Header("Settings")]
+        [SerializeField] private float _gameTimeSeconds = 90f;
+        [SerializeField] private int _maxHints = 5;
 
         private GameController _gameController;
-        private float _idleTimer;
-        private const float HintAutoShowTime = 5f; // 5초 무입력 시 자동 힌트
+        private float _timeRemaining;
+        private int _hintCount;
         private bool _hintActive;
+        private bool _isGameOver;
+        private bool _timerPaused;
 
         private void Awake()
         {
-            // UI 컴포넌트가 없으면 런타임에 생성
             if (_scoreText == null)
                 _scoreText = CreateText("ScoreText", new Vector2(-Screen.width * 0.4f, Screen.height * 0.45f),
                     "Score: 0", 36, TextAnchor.UpperLeft);
+
+            if (_timerText == null)
+            {
+                _timerText = CreateText("TimerText", new Vector2(Screen.width * 0.4f, Screen.height * 0.45f),
+                    "90", 40, TextAnchor.UpperRight);
+                _timerText.color = Color.white;
+            }
 
             if (_comboText == null)
             {
@@ -41,11 +55,9 @@ namespace Match3.Unity
             if (_gameOverPanel == null)
                 CreateGameOverPanel();
 
-            // 힌트 버튼 생성 (우측 하단)
             if (_hintButton == null)
                 CreateHintButton();
 
-            // 힌트 텍스트 생성 (하단 중앙)
             if (_hintText == null)
             {
                 _hintText = CreateText("HintText", new Vector2(0, -Screen.height * 0.4f),
@@ -58,53 +70,50 @@ namespace Match3.Unity
         {
             _gameController = controller;
 
-            // 이벤트 구독
             _gameController.Score.OnScoreChanged += OnScoreChanged;
             _gameController.OnChainCombo += OnChainCombo;
-            _gameController.OnGameOver += OnGameOver;
+            _gameController.OnGameOver += OnCoreGameOver;
 
-            // 힌트 버튼 이벤트
             if (_hintButton != null)
                 _hintButton.onClick.AddListener(OnHintButtonClicked);
 
-            // 스왑 시 힌트 숨김 + 타이머 리셋
             var input = _gameController.Input as UnityInputHandler;
             if (input != null)
-                input.OnTileSwapped += (a, b) =>
-                {
-                    _idleTimer = 0f;
-                    if (_hintActive) HideHint();
-                };
+                input.OnTileSwapped += (a, b) => { if (_hintActive) HideHint(); };
 
-            // 초기화
+            ResetGame();
+        }
+
+        private void ResetGame()
+        {
+            _timeRemaining = _gameTimeSeconds;
+            _hintCount = _maxHints;
+            _hintActive = false;
+            _isGameOver = false;
+            _timerPaused = false;
+
+            UpdateHintButton();
+            UpdateTimerText();
             UpdateScoreText(0, 0);
         }
 
         private void Update()
         {
-            // Idle 상태에서만 타이머 작동
-            if (_gameController == null || !_gameController.State.CanInput)
-            {
-                _idleTimer = 0f;
-                return;
-            }
+            if (_isGameOver || _gameController == null) return;
 
-            // 입력 감지 시 타이머 리셋 (Input System API)
-            var mouse = Mouse.current;
-            bool anyInput = (mouse != null && mouse.leftButton.wasPressedThisFrame)
-                         || (Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame);
+            // Idle이 아닐 때는 타이머 일시정지 (애니메이션 중)
+            _timerPaused = !_gameController.State.CanInput;
 
-            if (anyInput)
+            if (!_timerPaused)
             {
-                _idleTimer = 0f;
-                if (_hintActive) HideHint();
-                return;
-            }
+                _timeRemaining -= Time.deltaTime;
+                UpdateTimerText();
 
-            _idleTimer += Time.deltaTime;
-            if (_idleTimer >= HintAutoShowTime && !_hintActive)
-            {
-                ShowAutoHint();
+                if (_timeRemaining <= 0f)
+                {
+                    _timeRemaining = 0f;
+                    TimeUpGameOver();
+                }
             }
         }
 
@@ -114,17 +123,15 @@ namespace Match3.Unity
             {
                 _gameController.Score.OnScoreChanged -= OnScoreChanged;
                 _gameController.OnChainCombo -= OnChainCombo;
-                _gameController.OnGameOver -= OnGameOver;
+                _gameController.OnGameOver -= OnCoreGameOver;
 
                 var input = _gameController.Input as UnityInputHandler;
                 if (input != null)
-                    input.OnTileSwapped -= (a, b) =>
-                    {
-                        _idleTimer = 0f;
-                        if (_hintActive) HideHint();
-                    };
+                    input.OnTileSwapped -= (a, b) => { if (_hintActive) HideHint(); };
             }
         }
+
+        // ── 점수 / 콤보 ──
 
         private void OnScoreChanged(int newScore, int delta)
         {
@@ -134,22 +141,41 @@ namespace Match3.Unity
         private void OnChainCombo(int chainCount)
         {
             if (_comboText == null) return;
-
             _comboText.text = $"{chainCount}x COMBO!";
             _comboText.gameObject.SetActive(true);
-
-            // 1.5초 후 자동 숨김
             CancelInvoke(nameof(HideCombo));
             Invoke(nameof(HideCombo), 1.5f);
         }
 
-        private void OnGameOver()
+        private void HideCombo()
+        {
+            if (_comboText != null)
+                _comboText.gameObject.SetActive(false);
+        }
+
+        // ── 게임오버 ──
+
+        private void OnCoreGameOver()
+        {
+            // 일반 게임오버 (더 이상 이동 불가)
+            if (!_isGameOver) ShowGameOverPanel("No more moves!");
+        }
+
+        private void TimeUpGameOver()
+        {
+            if (_isGameOver) return;
+            _isGameOver = true;
+
+            _gameController.ForceGameOver();
+            ShowGameOverPanel("Time's Up!");
+        }
+
+        private void ShowGameOverPanel(string reason)
         {
             if (_gameOverPanel == null) return;
-
             _gameOverPanel.SetActive(true);
             if (_finalScoreText != null)
-                _finalScoreText.text = $"Final Score: {_gameController.Score.Score}";
+                _finalScoreText.text = $"{reason}\nFinal Score: {_gameController.Score.Score}";
         }
 
         public void RestartGame()
@@ -157,8 +183,13 @@ namespace Match3.Unity
             if (_gameOverPanel != null)
                 _gameOverPanel.SetActive(false);
 
+            if (_hintActive) HideHint();
+
             if (_gameController != null)
+            {
                 _gameController.StartGame();
+                ResetGame();
+            }
         }
 
         // ── 힌트 ──
@@ -166,31 +197,20 @@ namespace Match3.Unity
         private void OnHintButtonClicked()
         {
             if (_gameController == null || !_gameController.State.CanInput) return;
-            ShowHintFromEngine();
-        }
+            if (_hintCount <= 0) return;
 
-        private void ShowAutoHint()
-        {
-            if (_gameController == null || !_gameController.State.CanInput) return;
-            ShowHintFromEngine();
-        }
-
-        private void ShowHintFromEngine()
-        {
             if (_gameController.TryGetHint(out var a, out var b, out var hintResult))
             {
+                _hintCount--;
                 _hintActive = true;
-                _idleTimer = 0f;
+                UpdateHintButton();
 
-                // 힌트 텍스트 표시
                 _hintText.text = hintResult.Description;
                 _hintText.gameObject.SetActive(true);
 
-                // 타일 하이라이트
                 var renderer = _gameController.Renderer as UnityBoardRenderer;
                 renderer?.ShowHint(new List<TilePosition> { a, b });
 
-                // 3초 후 자동 숨김
                 CancelInvoke(nameof(HideHint));
                 Invoke(nameof(HideHint), 3f);
             }
@@ -199,57 +219,53 @@ namespace Match3.Unity
         private void HideHint()
         {
             _hintActive = false;
-            _idleTimer = 0f; // 타이머 리셋 → 다시 5초 후에 힌트
             _hintText.gameObject.SetActive(false);
 
             var renderer = _gameController?.Renderer as UnityBoardRenderer;
             renderer?.ClearHighlights();
         }
 
-        private void CreateHintButton()
+        private void UpdateHintButton()
         {
-            var btnGo = new GameObject("HintButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
-            btnGo.transform.SetParent(transform, false);
+            if (_hintButton == null) return;
 
-            var rect = btnGo.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(1f, 0f);
-            rect.anchorMax = new Vector2(1f, 0f);
-            rect.anchoredPosition = new Vector2(-80, 80);
-            rect.sizeDelta = new Vector2(140, 50);
+            bool available = _hintCount > 0;
+            _hintButton.interactable = available;
 
-            var img = btnGo.GetComponent<Image>();
-            img.color = new Color(0.2f, 0.6f, 0.8f);
+            var text = _hintButton.GetComponentInChildren<Text>();
+            if (text != null)
+                text.text = available ? $"💡 Hint ({_hintCount})" : "💡 Hint (0)";
 
-            var textGo = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
-            textGo.transform.SetParent(btnGo.transform, false);
-            var textRect = textGo.GetComponent<RectTransform>();
-            textRect.anchorMin = Vector2.zero;
-            textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = Vector2.zero;
-            textRect.offsetMax = Vector2.zero;
-
-            var btnText = textGo.GetComponent<Text>();
-            btnText.text = "💡 Hint";
-            btnText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            btnText.fontSize = 24;
-            btnText.alignment = TextAnchor.MiddleCenter;
-            btnText.color = Color.white;
-
-            _hintButton = btnGo.GetComponent<Button>();
+            var img = _hintButton.GetComponent<Image>();
+            if (img != null)
+                img.color = available ? new Color(0.2f, 0.6f, 0.8f) : new Color(0.3f, 0.3f, 0.3f);
         }
 
-        // ── 내부 ──
+        // ── 타이머 ──
+
+        private void UpdateTimerText()
+        {
+            if (_timerText == null) return;
+
+            int seconds = Mathf.CeilToInt(_timeRemaining);
+            int min = seconds / 60;
+            int sec = seconds % 60;
+            _timerText.text = $"{min}:{sec:D2}";
+
+            // 10초 미만이면 빨간색
+            if (seconds <= 10)
+                _timerText.color = Color.Lerp(Color.red, Color.white,
+                    Mathf.PingPong(Time.time * 4f, 1f));
+            else
+                _timerText.color = Color.white;
+        }
+
+        // ── UI 생성 ──
 
         private void UpdateScoreText(int score, int delta)
         {
             if (_scoreText != null)
                 _scoreText.text = $"Score: {score}";
-        }
-
-        private void HideCombo()
-        {
-            if (_comboText != null)
-                _comboText.gameObject.SetActive(false);
         }
 
         private Text CreateText(string name, Vector2 anchoredPos, string text, int fontSize, TextAnchor anchor)
@@ -273,6 +289,38 @@ namespace Match3.Unity
             return txt;
         }
 
+        private void CreateHintButton()
+        {
+            var btnGo = new GameObject("HintButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            btnGo.transform.SetParent(transform, false);
+
+            var rect = btnGo.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1f, 0f);
+            rect.anchorMax = new Vector2(1f, 0f);
+            rect.anchoredPosition = new Vector2(-80, 80);
+            rect.sizeDelta = new Vector2(160, 50);
+
+            var img = btnGo.GetComponent<Image>();
+            img.color = new Color(0.2f, 0.6f, 0.8f);
+
+            var textGo = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            textGo.transform.SetParent(btnGo.transform, false);
+            var textRect = textGo.GetComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+
+            var btnText = textGo.GetComponent<Text>();
+            btnText.text = "💡 Hint (5)";
+            btnText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            btnText.fontSize = 22;
+            btnText.alignment = TextAnchor.MiddleCenter;
+            btnText.color = Color.white;
+
+            _hintButton = btnGo.GetComponent<Button>();
+        }
+
         private void CreateGameOverPanel()
         {
             _gameOverPanel = new GameObject("GameOverPanel", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
@@ -286,32 +334,29 @@ namespace Match3.Unity
 
             var img = _gameOverPanel.GetComponent<Image>();
             img.color = new Color(0, 0, 0, 0.7f);
-
             _gameOverPanel.SetActive(false);
 
-            // Final Score Text
             var scoreGo = new GameObject("FinalScoreText", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
             scoreGo.transform.SetParent(_gameOverPanel.transform, false);
             var scoreRect = scoreGo.GetComponent<RectTransform>();
             scoreRect.anchorMin = new Vector2(0.5f, 0.5f);
             scoreRect.anchorMax = new Vector2(0.5f, 0.5f);
             scoreRect.anchoredPosition = new Vector2(0, 30);
-            scoreRect.sizeDelta = new Vector2(400, 60);
+            scoreRect.sizeDelta = new Vector2(400, 80);
 
             _finalScoreText = scoreGo.GetComponent<Text>();
             _finalScoreText.text = "Game Over!";
             _finalScoreText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            _finalScoreText.fontSize = 48;
+            _finalScoreText.fontSize = 36;
             _finalScoreText.alignment = TextAnchor.MiddleCenter;
             _finalScoreText.color = Color.white;
 
-            // Restart Button
             var btnGo = new GameObject("RestartButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
             btnGo.transform.SetParent(_gameOverPanel.transform, false);
             var btnRect = btnGo.GetComponent<RectTransform>();
             btnRect.anchorMin = new Vector2(0.5f, 0.5f);
             btnRect.anchorMax = new Vector2(0.5f, 0.5f);
-            btnRect.anchoredPosition = new Vector2(0, -40);
+            btnRect.anchoredPosition = new Vector2(0, -50);
             btnRect.sizeDelta = new Vector2(200, 50);
 
             var btnImg = btnGo.GetComponent<Image>();

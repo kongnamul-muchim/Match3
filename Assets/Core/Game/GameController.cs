@@ -160,6 +160,15 @@ namespace Match3.Core
             });
         }
 
+        /// <summary>타임아웃 등 외부에서 강제 게임오버</summary>
+        public void ForceGameOver()
+        {
+            if (State.CurrentState == GameState.GameOver) return;
+            State.ChangeState(GameState.GameOver);
+            Input?.SetEnabled(false);
+            OnGameOver?.Invoke();
+        }
+
         /// <summary>AI 힌트 요청 — 최적의 수 반환 (Match3HintEngine 사용)</summary>
         public bool TryGetHint(out TilePosition a, out TilePosition b, out HintResult hintResult)
         {
