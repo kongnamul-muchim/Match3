@@ -60,9 +60,10 @@ namespace Match3.Unity
             // 템플릿 Gem 생성
             var templateGO = new GameObject("GemTemplate");
             templateGO.transform.SetParent(_gemContainer);
+            var sr = templateGO.AddComponent<SpriteRenderer>();
+            sr.sortingOrder = 1;
             templateGO.SetActive(false);
             var template = templateGO.AddComponent<Gem>();
-            template.SpriteRenderer.sortingOrder = 1;
 
             _grid = new Gem[rows, cols];
             _pool = new GemPool(template, _gemContainer, rows * cols);
