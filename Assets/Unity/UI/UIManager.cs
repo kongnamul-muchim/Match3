@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 using Match3.Core;
 
 namespace Match3.Unity
@@ -88,8 +89,12 @@ namespace Match3.Unity
                 return;
             }
 
-            // 입력 감지 시 타이머 리셋
-            if (Input.anyKeyDown || Input.GetMouseButtonDown(0))
+            // 입력 감지 시 타이머 리셋 (Input System API)
+            var mouse = Mouse.current;
+            bool anyInput = (mouse != null && mouse.leftButton.wasPressedThisFrame)
+                         || (Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame);
+
+            if (anyInput)
             {
                 _idleTimer = 0f;
                 if (_hintActive) HideHint();
@@ -194,6 +199,7 @@ namespace Match3.Unity
         private void HideHint()
         {
             _hintActive = false;
+            _idleTimer = 0f; // 타이머 리셋 → 다시 5초 후에 힌트
             _hintText.gameObject.SetActive(false);
 
             var renderer = _gameController?.Renderer as UnityBoardRenderer;

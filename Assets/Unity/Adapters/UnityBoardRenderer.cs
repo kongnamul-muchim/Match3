@@ -150,7 +150,7 @@ namespace Match3.Unity
             }
         }
 
-        // ── 힌트: 크기 펄스 + 방향 움직임 ──
+        // ── 힌트: 크기 펄스 + 한쪽만 움직임 ──
 
         private IEnumerator HintWiggleRoutine(List<TilePosition> positions)
         {
@@ -163,28 +163,24 @@ namespace Match3.Unity
             Vector3 basePosA = GridToWorld(positions[0].Row, positions[0].Col);
             Vector3 basePosB = GridToWorld(positions[1].Row, positions[1].Col);
             Vector3 direction = (basePosB - basePosA).normalized;
+            Color brightColor = Color.Lerp(Color.white, GetGemColor(gemA.Type), 0.3f);
 
             float t = 0f;
             while (true)
             {
-                // 크기 펄스 + 방향 웨이브
                 float wave = Mathf.Sin(t * 3.5f);
-                float pulse = wave * 0.5f + 0.5f;       // 0~1
-                float move = Mathf.Sin(t * 2.8f) * 0.15f; // -0.15~0.15
+                float pulse = wave * 0.5f + 0.5f;          // 0~1
+                float move = Mathf.Sin(t * 2.8f) * 0.2f;   // -0.2~0.2
+                float scale = 1f + 0.25f * pulse;          // 1.0x ↔ 1.25x
 
-                // 크기: 1.0x ↔ 1.25x
-                float scale = 1f + 0.25f * pulse;
-
-                // 색상: 흰색에 가깝게 오버레이
-                Color brightColor = Color.Lerp(Color.white, GetGemColor(gemA.Type), 0.3f);
-
+                // A만 움직임 (B는 펄스만)
                 gemA.SpriteRenderer.color = brightColor;
                 gemA.transform.localScale = Vector3.one * scale;
                 gemA.transform.position = basePosA + direction * move;
 
                 gemB.SpriteRenderer.color = brightColor;
                 gemB.transform.localScale = Vector3.one * scale;
-                gemB.transform.position = basePosB - direction * move;
+                gemB.transform.position = basePosB; // 제자리
 
                 t += Time.deltaTime;
                 yield return null;
