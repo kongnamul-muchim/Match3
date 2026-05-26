@@ -249,10 +249,15 @@ namespace Match3.Unity
 
         private void OnHintButtonClicked()
         {
+            Debug.Log($"[Hint] Button clicked! controller={_gameController != null} canInput={_gameController?.State.CanInput} count={_hintCount}");
+
             if (_gameController == null || !_gameController.State.CanInput) return;
             if (_hintCount <= 0) return;
 
-            if (_gameController.TryGetHint(out var a, out var b, out var hintResult))
+            bool found = _gameController.TryGetHint(out var a, out var b, out var hintResult);
+            Debug.Log($"[Hint] TryGetHint={found} hintResult={hintResult?.Description}");
+
+            if (found && hintResult != null)
             {
                 _hintCount--;
                 _hintActive = true;
@@ -260,12 +265,18 @@ namespace Match3.Unity
 
                 _hintText.text = hintResult.Description;
                 _hintText.gameObject.SetActive(true);
+                Debug.Log($"[Hint] Text set: '{hintResult.Description}' active={_hintText.gameObject.activeSelf}");
 
                 var renderer = _gameController.Renderer as UnityBoardRenderer;
+                Debug.Log($"[Hint] Renderer={(renderer != null ? "✅" : "❌")}");
                 renderer?.ShowHint(new List<TilePosition> { a, b });
 
                 CancelInvoke(nameof(HideHint));
                 Invoke(nameof(HideHint), 3f);
+            }
+            else
+            {
+                Debug.Log("[Hint] ❌ No valid hint found! Possible game board issue.");
             }
         }
 
