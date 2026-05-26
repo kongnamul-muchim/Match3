@@ -112,9 +112,9 @@ namespace Match3.Unity
             StartCoroutine(AnimateRemoveRoutine(positions, onComplete));
         }
 
-        public void AnimateDrop(List<DropInfo> drops, Action onComplete)
+        public void AnimateDrop(List<DropInfo> drops, List<(TilePosition pos, GemType type)> newTiles, Action onComplete)
         {
-            StartCoroutine(AnimateDropRoutine(drops, onComplete));
+            StartCoroutine(AnimateDropRoutine(drops, newTiles, onComplete));
         }
 
         public void AnimateNewTile(TilePosition pos, GemType type, Action onComplete)
@@ -341,18 +341,15 @@ namespace Match3.Unity
             onComplete?.Invoke();
         }
 
-        private IEnumerator AnimateDropRoutine(List<DropInfo> drops, Action onComplete)
+        private IEnumerator AnimateDropRoutine(
+            List<DropInfo> drops,
+            List<(TilePosition pos, GemType type)> newTiles,
+            Action onComplete)
         {
-            if (drops.Count == 0)
-            {
-                onComplete?.Invoke();
-                yield break;
-            }
-
-            // 드롭 정보 정리 + 그리드 참조 업데이트
             var moving = new List<(Gem gem, Vector3 from, Vector3 to)>();
             float maxDistance = 0f;
 
+            // ── 기존 타일 드롭 ──
             foreach (var drop in drops)
             {
                 var gem = _grid[drop.From.Row, drop.From.Col];
@@ -371,14 +368,41 @@ namespace Match3.Unity
                     maxDistance = drop.Distance;
             }
 
+            // ── 새 타일 드롭 (보드 위에서 아래로) ──
+            foreach (var (pos, type) in newTiles)
+            {
+                var gem = _pool.Get();
+                Vector3 fromPos = GridToWorld(_rows, pos.Col); // 보드 위에서 시작
+                Vector3 toPos = GridToWorld(pos.Row, pos.Col);
+                gem.transform.position = fromPos;
+                gem.Type = type;
+                gem.Row = pos.Row;
+                gem.Col = pos.Col;
+                gem.SetSprite(GetSprite(type));
+                gem.SetColor(GetGemColor(type));
+                gem.SpriteRenderer.sortingOrder = 1;
+                moving.Add((gem, fromPos, toPos));
+
+                _grid[pos.Row, pos.Col] = gem;
+
+                float dist = _rows - pos.Row;
+                if (dist > maxDistance)
+                    maxDistance = dist;
+            }
+
+            if (moving.Count == 0)
+            {
+                onComplete?.Invoke();
+                yield break;
+            }
+
             float duration = Mathf.Clamp(maxDistance * _dropDurationPerUnit, 0.15f, 0.5f);
 
-            // 약간의 바운스 효과 (중력)
+            // 중력 낙하 애니메이션 (바운스)
             float elapsed = 0f;
             while (elapsed < duration)
             {
                 float t = elapsed / duration;
-                // ease-out + bounce
                 float s = 1f - Mathf.Pow(1f - t, 2f) * (1f - t * 0.3f);
 
                 foreach (var (gem, from, to) in moving)

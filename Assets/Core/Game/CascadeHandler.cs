@@ -107,11 +107,61 @@ namespace Match3.Core
             return drops;
         }
 
-        /// <summary>빈 공간에 새 타일 생성</summary>
+        // ── 단계별 캐스케이드 지원 ──
+
+        private List<(TilePosition pos, GemType type)> _pendingNewTiles;
+
+        /// <summary>비어있는 칸의 새 타일 생성 정보를 미리 생성 (보드에는 반영 안 함)</summary>
+        public void PrepareNewTileDrops()
+        {
+            _pendingNewTiles = new List<(TilePosition, GemType)>();
+            // 위에서 아래로 스캔 (먼저 채워지는 순서대로)
+            for (int c = 0; c < Board.Cols; c++)
+            {
+                for (int r = Board.Rows - 1; r >= 0; r--)
+                {
+                    if (_board[r, c].IsEmpty)
+                    {
+                        var type = (GemType)_rng.Next((int)GemType.Count);
+                        _pendingNewTiles.Add((new TilePosition(r, c), type));
+                    }
+                }
+            }
+        }
+
+        /// <summary>PrepareNewTileDrops() 후 호출. 새 타일들의 드롭 정보 반환</summary>
+        public List<(DropInfo drop, GemType type)> GetNewTileDropData()
+        {
+            var result = new List<(DropInfo, GemType)>();
+            if (_pendingNewTiles == null) return result;
+
+            foreach (var (pos, type) in _pendingNewTiles)
+            {
+                int fromRow = Board.Rows; // 보드 위 가상의 시작 위치
+                int distance = fromRow - pos.Row;
+                result.Add((
+                    new DropInfo(new TilePosition(fromRow, pos.Col), pos, distance),
+                    type
+                ));
+            }
+            return result;
+        }
+
+        /// <summary>PrepareNewTileDrops()에서 생성한 정보로 보드에 타일 채우기</summary>
+        public void CommitNewTileDrops()
+        {
+            if (_pendingNewTiles == null) return;
+            foreach (var (pos, type) in _pendingNewTiles)
+            {
+                _board.SetTile(pos.Row, pos.Col, type);
+            }
+            _pendingNewTiles = null;
+        }
+
+        /// <summary>빈 공간에 새 타일 생성 (기존 단일 호출 방식)</summary>
         public List<TilePosition> FillEmptySpaces()
         {
             var filled = new List<TilePosition>();
-
             for (int r = 0; r < Board.Rows; r++)
             {
                 for (int c = 0; c < Board.Cols; c++)
@@ -124,7 +174,6 @@ namespace Match3.Core
                     }
                 }
             }
-
             return filled;
         }
     }

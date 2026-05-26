@@ -9,7 +9,7 @@ namespace Match3.Core
         void UpdateTile(int row, int col, GemType type);
         void AnimateSwap(TilePosition a, TilePosition b, System.Action onComplete);
         void AnimateRemove(List<TilePosition> positions, System.Action onComplete);
-        void AnimateDrop(List<DropInfo> drops, System.Action onComplete);
+        void AnimateDrop(List<DropInfo> drops, List<(TilePosition pos, GemType type)> newTiles, System.Action onComplete);
         void AnimateNewTile(TilePosition pos, GemType type, System.Action onComplete);
         void ShowHint(List<TilePosition> positions);
         void ClearHighlights();
