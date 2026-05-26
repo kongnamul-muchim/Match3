@@ -5,6 +5,33 @@ using Match3.Core;
 
 namespace Match3.Unity
 {
+    /// <summary>WebGL 안전 폰트 헬퍼</summary>
+    public static class FontHelper
+    {
+        private static Font _cached;
+
+        public static Font GetDefaultFont()
+        {
+            if (_cached != null) return _cached;
+
+            // 시도 1: LegacyRuntime (Unity built-in)
+            _cached = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (_cached != null) return _cached;
+
+            // 시도 2: Arial
+            _cached = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            if (_cached != null) return _cached;
+
+            // 시도 3: OS fallback (WebGL에서는 안 될 수 있음)
+            try { _cached = Font.CreateDynamicFontFromOSFont("Arial", 24); } catch { }
+
+            return _cached;
+        }
+    }
+}
+
+namespace Match3.Unity
+{
     /// <summary>점수/콤보/게임오버/힌트/타이머 UI 관리</summary>
     public class UIManager : MonoBehaviour
     {
@@ -281,7 +308,7 @@ namespace Match3.Unity
 
             var txt = go.AddComponent<Text>();
             txt.text = text;
-            txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            txt.font = FontHelper.GetDefaultFont();
             txt.fontSize = fontSize;
             txt.alignment = anchor;
             txt.color = Color.white;
@@ -313,7 +340,7 @@ namespace Match3.Unity
 
             var btnText = textGo.GetComponent<Text>();
             btnText.text = "💡 Hint (5)";
-            btnText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            btnText.font = FontHelper.GetDefaultFont();
             btnText.fontSize = 22;
             btnText.alignment = TextAnchor.MiddleCenter;
             btnText.color = Color.white;
@@ -346,7 +373,7 @@ namespace Match3.Unity
 
             _finalScoreText = scoreGo.GetComponent<Text>();
             _finalScoreText.text = "Game Over!";
-            _finalScoreText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _finalScoreText.font = FontHelper.GetDefaultFont();
             _finalScoreText.fontSize = 36;
             _finalScoreText.alignment = TextAnchor.MiddleCenter;
             _finalScoreText.color = Color.white;
@@ -372,7 +399,7 @@ namespace Match3.Unity
 
             var btnText = btnTextGo.GetComponent<Text>();
             btnText.text = "Restart";
-            btnText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            btnText.font = FontHelper.GetDefaultFont();
             btnText.fontSize = 28;
             btnText.alignment = TextAnchor.MiddleCenter;
             btnText.color = Color.white;
