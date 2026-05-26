@@ -15,8 +15,6 @@ namespace Match3.Unity
         [SerializeField] private float _removeDuration = 0.25f;
         [SerializeField] private float _dropDurationPerUnit = 0.08f;
         [SerializeField] private float _newTileDuration = 0.3f;
-        [SerializeField] private float _hintPulseSpeed = 2f;
-
         [Header("Gem Sprites (5개 — Red/Blue/Green/Yellow/Purple)")]
         [SerializeField] private Sprite[] _gemSprites = new Sprite[5];
 
@@ -126,7 +124,8 @@ namespace Match3.Unity
         {
             if (_hintCoroutine != null)
                 StopCoroutine(_hintCoroutine);
-            _hintCoroutine = StartCoroutine(HintPulseRoutine(positions));
+
+            _hintCoroutine = StartCoroutine(HintWiggleRoutine(positions));
         }
 
         public void ClearHighlights()
@@ -142,8 +141,53 @@ namespace Match3.Unity
                 for (int c = 0; c < _cols; c++)
                 {
                     if (_grid[r, c] != null)
+                    {
                         _grid[r, c].SetColor(GetGemColor(_grid[r, c].Type));
+                        _grid[r, c].transform.localScale = Vector3.one;
+                        _grid[r, c].transform.position = GridToWorld(r, c);
+                    }
                 }
+            }
+        }
+
+        // ── 힌트: 크기 펄스 + 방향 움직임 ──
+
+        private IEnumerator HintWiggleRoutine(List<TilePosition> positions)
+        {
+            if (positions == null || positions.Count < 2) yield break;
+
+            var gemA = _grid[positions[0].Row, positions[0].Col];
+            var gemB = _grid[positions[1].Row, positions[1].Col];
+            if (gemA == null || gemB == null) yield break;
+
+            Vector3 basePosA = GridToWorld(positions[0].Row, positions[0].Col);
+            Vector3 basePosB = GridToWorld(positions[1].Row, positions[1].Col);
+            Vector3 direction = (basePosB - basePosA).normalized;
+
+            float t = 0f;
+            while (true)
+            {
+                // 크기 펄스 + 방향 웨이브
+                float wave = Mathf.Sin(t * 3.5f);
+                float pulse = wave * 0.5f + 0.5f;       // 0~1
+                float move = Mathf.Sin(t * 2.8f) * 0.15f; // -0.15~0.15
+
+                // 크기: 1.0x ↔ 1.25x
+                float scale = 1f + 0.25f * pulse;
+
+                // 색상: 흰색에 가깝게 오버레이
+                Color brightColor = Color.Lerp(Color.white, GetGemColor(gemA.Type), 0.3f);
+
+                gemA.SpriteRenderer.color = brightColor;
+                gemA.transform.localScale = Vector3.one * scale;
+                gemA.transform.position = basePosA + direction * move;
+
+                gemB.SpriteRenderer.color = brightColor;
+                gemB.transform.localScale = Vector3.one * scale;
+                gemB.transform.position = basePosB - direction * move;
+
+                t += Time.deltaTime;
+                yield return null;
             }
         }
 
@@ -455,30 +499,5 @@ namespace Match3.Unity
             onComplete?.Invoke();
         }
 
-        private IEnumerator HintPulseRoutine(List<TilePosition> positions)
-        {
-            var hintedGems = new List<Gem>();
-            foreach (var pos in positions)
-            {
-                var gem = _grid[pos.Row, pos.Col];
-                if (gem != null)
-                    hintedGems.Add(gem);
-            }
-
-            if (hintedGems.Count == 0) yield break;
-
-            float t = 0f;
-            while (true)
-            {
-                float pulse = 0.6f + 0.4f * Mathf.Sin(t * _hintPulseSpeed);
-                foreach (var gem in hintedGems)
-                {
-                    if (gem != null)
-                        gem.SpriteRenderer.color = Color.Lerp(Color.white, GetGemColor(gem.Type), pulse);
-                }
-                t += Time.deltaTime;
-                yield return null;
-            }
-        }
     }
 }
