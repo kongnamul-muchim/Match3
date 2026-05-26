@@ -320,7 +320,8 @@ namespace Match3.Unity
 
             var txt = go.AddComponent<Text>();
             txt.text = text;
-            txt.font = FontHelper.GetDefaultFont();
+            var font = FontHelper.GetDefaultFont();
+            if (font != null) txt.font = font;
             txt.fontSize = fontSize;
             txt.alignment = anchor;
             txt.color = Color.white;
@@ -352,7 +353,8 @@ namespace Match3.Unity
 
             var btnText = textGo.GetComponent<Text>();
             btnText.text = "💡 Hint";
-            btnText.font = FontHelper.GetDefaultFont();
+            var hintFont = FontHelper.GetDefaultFont();
+            if (hintFont != null) btnText.font = hintFont;
             btnText.fontSize = 24;
             btnText.alignment = TextAnchor.MiddleCenter;
             btnText.color = Color.white;
@@ -386,7 +388,8 @@ namespace Match3.Unity
 
             _finalScoreText = scoreGo.GetComponent<Text>();
             _finalScoreText.text = "Game Over!";
-            _finalScoreText.font = FontHelper.GetDefaultFont();
+            var fsFont = FontHelper.GetDefaultFont();
+            if (fsFont != null) _finalScoreText.font = fsFont;
             _finalScoreText.fontSize = 36;
             _finalScoreText.alignment = TextAnchor.MiddleCenter;
             _finalScoreText.color = Color.white;
@@ -412,7 +415,8 @@ namespace Match3.Unity
 
             var inputField = inputGo.AddComponent<InputField>();
             var textComp = inputGo.AddComponent<Text>();
-            textComp.font = FontHelper.GetDefaultFont();
+            var defaultFont = FontHelper.GetDefaultFont();
+            if (defaultFont != null) textComp.font = defaultFont;
             textComp.fontSize = 22;
             textComp.alignment = TextAnchor.MiddleCenter;
             textComp.color = Color.black;
@@ -428,7 +432,7 @@ namespace Match3.Unity
             phRect.offsetMax = Vector2.zero;
             var phText = phGo.GetComponent<Text>();
             phText.text = "닉네임 입력";
-            phText.font = FontHelper.GetDefaultFont();
+            if (defaultFont != null) phText.font = defaultFont;
             phText.fontSize = 22;
             phText.alignment = TextAnchor.MiddleCenter;
             phText.color = new Color(0.5f, 0.5f, 0.5f);
@@ -478,7 +482,8 @@ namespace Match3.Unity
             rankRect.sizeDelta = new Vector2(400, 180);
 
             _leaderboardText = rankGo.GetComponent<Text>();
-            _leaderboardText.font = FontHelper.GetDefaultFont();
+            var lbFont = FontHelper.GetDefaultFont();
+            if (lbFont != null) _leaderboardText.font = lbFont;
             _leaderboardText.fontSize = 18;
             _leaderboardText.alignment = TextAnchor.UpperCenter;
             _leaderboardText.color = new Color(0.9f, 0.9f, 0.9f);
@@ -497,7 +502,8 @@ namespace Match3.Unity
 
             var txt = go.GetComponent<Text>();
             txt.text = text;
-            txt.font = FontHelper.GetDefaultFont();
+            var font = FontHelper.GetDefaultFont();
+            if (font != null) txt.font = font;
             txt.fontSize = fontSize;
             txt.alignment = TextAnchor.MiddleCenter;
             txt.color = color;
