@@ -119,7 +119,16 @@ namespace Match3.Unity
             scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.matchWidthOrHeight = 0.5f;
 
-            // CanvasScaling을 위한 GraphicRaycaster는 Canvas에 기본 포함됨
+            // GraphicRaycaster 필수! 없으면 버튼 클릭 안 됨
+            if (GetComponent<UnityEngine.UI.GraphicRaycaster>() == null)
+                gameObject.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+
+            // EventSystem 필수! UI 입력 처리
+            if (FindObjectOfType<UnityEngine.EventSystems.EventSystem>() == null)
+            {
+                var es = new GameObject("EventSystem", typeof(UnityEngine.EventSystems.EventSystem));
+                es.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+            }
         }
     }
 }
