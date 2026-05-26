@@ -13,6 +13,7 @@ namespace Match3.Core
         public ScoreManager Score { get; }
         public GameStateMachine State { get; }
         public MatchFinder MatchFinder { get; }
+        public Match3HintEngine HintEngine { get; }
 
         private readonly SwapHandler _swapHandler;
         private readonly CascadeHandler _cascadeHandler;
@@ -30,6 +31,7 @@ namespace Match3.Core
             Score = new ScoreManager();
             State = new GameStateMachine();
             MatchFinder = new MatchFinder(Board);
+            HintEngine = new Match3HintEngine(Board);
             _swapHandler = new SwapHandler(Board, MatchFinder);
             _cascadeHandler = new CascadeHandler(Board);
         }
@@ -158,48 +160,35 @@ namespace Match3.Core
             });
         }
 
-        /// <summary>힌트 요청 (선택 가능한 이동 중 하나 반환)</summary>
-        public bool TryGetHint(out TilePosition a, out TilePosition b)
+        /// <summary>AI 힌트 요청 — 최적의 수 반환 (Match3HintEngine 사용)</summary>
+        public bool TryGetHint(out TilePosition a, out TilePosition b, out HintResult hintResult)
         {
-            a = new TilePosition(0, 0);
-            b = new TilePosition(0, 0);
-
-            for (int r = 0; r < Board.Rows; r++)
+            hintResult = HintEngine.GetBestMove();
+            if (hintResult != null)
             {
-                for (int c = 0; c < Board.Cols; c++)
-                {
-                    var pos = new TilePosition(r, c);
-
-                    // 오른쪽 스왑
-                    if (c + 1 < Board.Cols)
-                    {
-                        Board.Swap(pos, new TilePosition(r, c + 1));
-                        bool valid = MatchFinder.FindAllMatches().Count > 0;
-                        Board.Swap(pos, new TilePosition(r, c + 1));
-                        if (valid)
-                        {
-                            a = pos;
-                            b = new TilePosition(r, c + 1);
-                            return true;
-                        }
-                    }
-
-                    // 아래쪽 스왑
-                    if (r + 1 < Board.Rows)
-                    {
-                        Board.Swap(pos, new TilePosition(r + 1, c));
-                        bool valid = MatchFinder.FindAllMatches().Count > 0;
-                        Board.Swap(pos, new TilePosition(r + 1, c));
-                        if (valid)
-                        {
-                            a = pos;
-                            b = new TilePosition(r + 1, c);
-                            return true;
-                        }
-                    }
-                }
+                a = hintResult.From;
+                b = hintResult.To;
+                return true;
             }
 
+            a = new TilePosition(0, 0);
+            b = new TilePosition(0, 0);
+            return false;
+        }
+
+        /// <summary>기본 힌트 (하위호환)</summary>
+        public bool TryGetHint(out TilePosition a, out TilePosition b)
+        {
+            var result = HintEngine.GetBestMove();
+            if (result != null)
+            {
+                a = result.From;
+                b = result.To;
+                return true;
+            }
+
+            a = new TilePosition(0, 0);
+            b = new TilePosition(0, 0);
             return false;
         }
     }
