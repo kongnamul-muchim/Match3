@@ -30,20 +30,29 @@ namespace Match3.Unity
         private TilePosition? _startTile;
         private bool _isDragging;
 
+        private float _cameraZDist = 10f; // Camera z=-10, game plane z=0
+
+        private Vector3 ScreenToWorldPos()
+        {
+            var pos = Input.mousePosition;
+            pos.z = _cameraZDist;
+            return Camera.main.ScreenToWorldPoint(pos);
+        }
+
         private void Update()
         {
             if (!_enabled) return;
 
             if (Input.GetMouseButtonDown(0))
             {
-                _dragStartWorld = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+                _dragStartWorld = ScreenToWorldPos();
                 _startTile = WorldToTile(_dragStartWorld);
                 _isDragging = false;
             }
 
             if (Input.GetMouseButton(0) && _startTile.HasValue)
             {
-                Vector2 currentWorld = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+                Vector2 currentWorld = ScreenToWorldPos();
                 float dragDist = Vector2.Distance(currentWorld, _dragStartWorld);
 
                 if (dragDist >= _dragThreshold)
@@ -56,7 +65,7 @@ namespace Match3.Unity
             {
                 if (_isDragging)
                 {
-                    Vector2 endWorld = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+                    Vector2 endWorld = ScreenToWorldPos();
                     Vector2 dragDir = endWorld - _dragStartWorld;
 
                     var endTile = GetAdjacentInDirection(_startTile.Value, dragDir);
