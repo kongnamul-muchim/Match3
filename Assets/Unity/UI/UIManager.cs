@@ -554,7 +554,7 @@ namespace Match3.Unity
             }
 
             bool done = false;
-            _leaderboard.GetLeaderboard(10, (response) =>
+            yield return _leaderboard.GetLeaderboard(10, (response) =>
             {
                 if (response != null && response.items != null && response.items.Count > 0)
                 {
@@ -606,7 +606,7 @@ namespace Match3.Unity
         private IEnumerator SubmitScoreRoutine(string name, int score, int combo, int moves)
         {
             bool done = false;
-            _leaderboard.SubmitScore(name, score, combo, moves,
+            yield return _leaderboard.SubmitScore(name, score, combo, moves,
                 (entry) =>
                 {
                     if (_statusText != null)
