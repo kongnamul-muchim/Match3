@@ -41,26 +41,28 @@ namespace Match3.Unity
 
         private void Start()
         {
-            Debug.Log($"[UnityInputHandler] Start() — Camera.main={(Camera.main != null ? Camera.main.transform.position.ToString() : "NULL")}");
+            string camInfo = Camera.main != null
+                ? $"pos={Camera.main.transform.position} ortho={Camera.main.orthographic}"
+                : "NULL";
+            FileLogger.Log($"[UnityInputHandler] Start() — Camera.main: {camInfo}");
         }
 
         private void Update()
         {
             if (!_enabled)
             {
-                // 한 번만 로그
                 if (Input.GetMouseButtonDown(0))
-                    Debug.Log("[UnityInputHandler] ❌ _enabled == false — 입력 무시됨");
+                    FileLogger.Log("[UnityInputHandler] _enabled == false — 입력 무시됨");
                 return;
             }
 
             if (Input.GetMouseButtonDown(0))
             {
                 _dragStartWorld = ScreenToWorldPos();
-                Debug.Log($"[UnityInputHandler] MouseDown — screen={Input.mousePosition} → world={_dragStartWorld}");
+                FileLogger.Log($"[Input] MouseDown — screen={Input.mousePosition} world=({_dragStartWorld.x:F2},{_dragStartWorld.y:F2})");
 
                 _startTile = WorldToTile(_dragStartWorld);
-                Debug.Log($"[UnityInputHandler] WorldToTile → {(_startTile?.ToString() ?? "null")}");
+                FileLogger.Log($"[Input] WorldToTile → {(_startTile?.ToString() ?? "null")}");
                 _isDragging = false;
             }
 
@@ -72,27 +74,27 @@ namespace Match3.Unity
                 if (dragDist >= _dragThreshold)
                 {
                     if (!_isDragging)
-                        Debug.Log($"[UnityInputHandler] Drag started — dist={dragDist:F2}");
+                        FileLogger.Log($"[Input] Drag started — dist={dragDist:F2}");
                     _isDragging = true;
                 }
             }
 
             if (Input.GetMouseButtonUp(0) && _startTile.HasValue)
             {
-                Debug.Log($"[UnityInputHandler] MouseUp — isDragging={_isDragging}");
+                FileLogger.Log($"[Input] MouseUp — isDragging={_isDragging}");
 
                 if (_isDragging)
                 {
                     Vector2 endWorld = ScreenToWorldPos();
                     Vector2 dragDir = endWorld - _dragStartWorld;
-                    Debug.Log($"[UnityInputHandler] Drag dir={dragDir} (mag={dragDir.magnitude:F2})");
+                    FileLogger.Log($"[Input] Drag dir=({dragDir.x:F2},{dragDir.y:F2}) mag={dragDir.magnitude:F2}");
 
                     var endTile = GetAdjacentInDirection(_startTile.Value, dragDir);
-                    Debug.Log($"[UnityInputHandler] Adjacent tile → {endTile?.ToString() ?? "null"}");
+                    FileLogger.Log($"[Input] Adjacent tile → {endTile?.ToString() ?? "null"}");
 
                     if (endTile.HasValue && IsInBounds(endTile.Value.Row, endTile.Value.Col))
                     {
-                        Debug.Log($"[UnityInputHandler] ✅ Firing OnTileSwapped: {_startTile.Value} → {endTile.Value}");
+                        FileLogger.Log($"[Input] Firing OnTileSwapped: {_startTile.Value} → {endTile.Value}");
                         OnTileSwapped?.Invoke(_startTile.Value, endTile.Value);
                     }
                 }

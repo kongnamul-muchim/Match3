@@ -48,6 +48,8 @@ namespace Match3.Unity
             _rows = rows;
             _cols = cols;
 
+            FileLogger.Log($"[Renderer] Initialize({rows}x{cols})");
+
             // 기존 그리드 정리
             ClearAll();
 
@@ -73,6 +75,7 @@ namespace Match3.Unity
 
             // 메인 카메라 위치/크기 조정
             AdjustCamera();
+            FileLogger.Log($"[Renderer] Camera={Camera.main.transform.position} orthoSize={Camera.main.orthographicSize}");
         }
 
         public void UpdateTile(int row, int col, GemType type)

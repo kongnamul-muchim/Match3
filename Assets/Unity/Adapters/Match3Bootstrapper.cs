@@ -19,6 +19,12 @@ namespace Match3.Unity
 
         private void Awake()
         {
+            // ── 파일 로거 초기화 (Debug.Log 안 찍힐 때 대비) ──
+            FileLogger.Init();
+            var flusherGO = new GameObject("FileLoggerFlusher");
+            flusherGO.AddComponent<FileLoggerFlusher>();
+            FileLogger.Log("=== Match3Bootstrapper Awake ===");
+
             // ── 씬 기본 설정 ──
             SetupMainCamera();
             SetupCanvas();
@@ -29,6 +35,7 @@ namespace Match3.Unity
                 var go = new GameObject("BoardRenderer");
                 go.transform.SetParent(transform.parent);
                 _boardRenderer = go.AddComponent<UnityBoardRenderer>();
+                FileLogger.Log($"BoardRenderer created: {_boardRenderer != null}");
             }
 
             if (_inputHandler == null)
@@ -36,6 +43,7 @@ namespace Match3.Unity
                 var go = new GameObject("InputHandler");
                 go.transform.SetParent(transform.parent);
                 _inputHandler = go.AddComponent<UnityInputHandler>();
+                FileLogger.Log($"InputHandler created: {_inputHandler != null}");
             }
 
             if (_uiManager == null)
@@ -49,14 +57,13 @@ namespace Match3.Unity
             _gameController = new GameController();
             _gameController.Renderer = _boardRenderer;
             _gameController.Input = _inputHandler;
+            FileLogger.Log("GameController created, DI set");
 
             // ── Input 이벤트 연결 ──
             _inputHandler.OnTileSwapped += (a, b) =>
             {
-                Debug.Log($"[Bootstrapper] OnTileSwapped! from=({a.Row},{a.Col}) to=({b.Row},{b.Col})");
-                Debug.Log($"[Bootstrapper]   Renderer= {(_gameController.Renderer != null ? "✅" : "❌")}");
-                Debug.Log($"[Bootstrapper]   Input=    {(_gameController.Input != null ? "✅" : "❌")}");
-                Debug.Log($"[Bootstrapper]   State=    {_gameController.State.CurrentState}");
+                FileLogger.Log($"[Bootstrapper] OnTileSwapped! from=({a.Row},{a.Col}) to=({b.Row},{b.Col})");
+                FileLogger.Log($"[Bootstrapper]   Renderer={(_gameController.Renderer != null)} Input={(_gameController.Input != null)} State={_gameController.State.CurrentState}");
                 _gameController.OnPlayerSwap(a, b);
             };
 
@@ -64,11 +71,12 @@ namespace Match3.Unity
             _uiManager.Initialize(_gameController);
 
             // ── 게임 시작! ──
-            Debug.Log($"[Bootstrapper] Before StartGame — Renderer={(_gameController.Renderer != null ? "✅" : "❌")} Input={(_gameController.Input != null ? "✅" : "❌")}");
+            FileLogger.Log($"[Bootstrapper] Before StartGame — Renderer={(_gameController.Renderer != null)} Input={(_gameController.Input != null)}");
             _gameController.StartGame();
-            Debug.Log($"[Bootstrapper] After StartGame — State={_gameController.State.CurrentState} Score={_gameController.Score.Score}");
+            FileLogger.Log($"[Bootstrapper] After StartGame — State={_gameController.State.CurrentState} Score={_gameController.Score.Score}");
 
-            Debug.Log("[Match3Bootstrapper] Game started!");
+            FileLogger.Log("=== Match3Bootstrapper complete ===");
+            FileLogger.Flush();
         }
 
         private void OnDestroy()
