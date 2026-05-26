@@ -113,6 +113,24 @@ namespace Match3.Core
         /// <summary>해당 위치가 비었는지</summary>
         public bool IsEmpty(int row, int col) => _grid[row, col].IsEmpty;
 
+        /// <summary>보드 전체를 딥 카피하여 새 Board 반환</summary>
+        public Board Clone()
+        {
+            var clone = new Board();
+            for (int r = 0; r < Rows; r++)
+                for (int c = 0; c < Cols; c++)
+                    clone._grid[r, c] = _grid[r, c].Clone();
+            return clone;
+        }
+
+        /// <summary>다른 Board의 상태를 이 Board로 복사</summary>
+        public void CopyFrom(Board source)
+        {
+            for (int r = 0; r < Rows; r++)
+                for (int c = 0; c < Cols; c++)
+                    _grid[r, c] = source._grid[r, c].Clone();
+        }
+
         /// <summary>보드 범위 체크</summary>
         public static bool IsInBounds(int row, int col) =>
             row >= 0 && row < Rows && col >= 0 && col < Cols;

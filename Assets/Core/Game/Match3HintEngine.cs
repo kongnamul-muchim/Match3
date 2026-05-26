@@ -46,7 +46,7 @@ namespace Match3.Core
     /// </summary>
     public class Match3HintEngine
     {
-        private readonly Board _board;
+        private readonly Board _originalBoard;
 
         // 힌트 점수 테이블
         private const int ScorePerMatchTile = 10;
@@ -56,7 +56,7 @@ namespace Match3.Core
 
         public Match3HintEngine(Board board)
         {
-            _board = board;
+            _originalBoard = board;
         }
 
         /// <summary>모든 가능한 스왑을 평가하여 정렬된 힌트 목록 반환</summary>
@@ -100,24 +100,25 @@ namespace Match3.Core
             return allMoves.Count > 0 ? allMoves[0] : null;
         }
 
-        /// <summary>특정 스왑을 평가하여 힌트 결과 반환</summary>
+        /// <summary>특정 스왑을 평가하여 힌트 결과 반환 (복제 보드에서 안전하게 시뮬레이션)</summary>
         private HintResult EvaluateSwap(TilePosition a, TilePosition b)
         {
-            var gemType = _board[a.Row, a.Col].Type;
+            var gemType = _originalBoard[a.Row, a.Col].Type;
             var result = new HintResult(a, b, gemType);
 
-            // 스왑 시뮬레이션
-            _board.Swap(a, b);
+            // 🔥 원본 보드는 절대 수정하지 않음! 복제본에서 시뮬레이션
+            var simBoard = _originalBoard.Clone();
+            var simFinder = new MatchFinder(simBoard);
+            var simCascade = new CascadeHandler(simBoard);
 
-            // 1. 직접 매치 확인
-            var finder = new MatchFinder(_board);
-            var matches = finder.FindAllMatches();
+            // 1. 스왑 시뮬레이션
+            simBoard.Swap(a, b);
+
+            // 2. 직접 매치 확인
+            var matches = simFinder.FindAllMatches();
 
             if (matches.Count == 0)
-            {
-                _board.Swap(a, b); // 복원
-                return result;     // 유효하지 않음
-            }
+                return result; // 유효하지 않음
 
             // 매치 정보 수집
             int totalMatchCount = 0;
@@ -137,7 +138,7 @@ namespace Match3.Core
             result.MatchCount = totalMatchCount;
             result.Rank = HintRank.Normal;
 
-            // 2. 매치 크기별 보너스
+            // 3. 매치 크기별 보너스
             int bonus = 0;
             if (totalMatchCount >= 5)
             {
@@ -150,18 +151,18 @@ namespace Match3.Core
                 result.Rank = HintRank.Good;
             }
 
-            // 3. 연쇄(캐스케이드) 예측 시뮬레이션
-            int predictedChain = SimulateCascade(allMatchedPositions, out int additionalDrops);
+            // 4. 연쇄 예측 (복제 보드에서 안전하게)
+            int predictedChain = SimulateCascade(simBoard, simFinder, simCascade, allMatchedPositions, out int additionalDrops);
 
             result.ChainCount = predictedChain;
             result.CascadeDropCount = additionalDrops;
 
-            // 4. 총 점수 계산
+            // 5. 총 점수 계산
             result.TotalScore = totalMatchCount * ScorePerMatchTile
                               + (predictedChain - 1) * ScorePerChainLevel
                               + bonus;
 
-            // 5. 랭크 조정 (연쇄 기반)
+            // 6. 랭크 조정
             if (predictedChain >= 3 && additionalDrops >= 10)
                 result.Rank = HintRank.Excellent;
             else if (predictedChain >= 2 && additionalDrops >= 6)
@@ -169,44 +170,34 @@ namespace Match3.Core
             else if (predictedChain >= 2)
                 result.Rank = HintRank.Great;
 
-            // 6. 힌트 설명 생성
+            // 7. 힌트 설명 생성
             result.Description = GenerateHint(result);
 
-            // 스왑 복원
-            _board.Swap(a, b);
+            // 복제본은 버려짐 (GC) — 원본은 안전!
             return result;
         }
 
-        /// <summary>매치 후 캐스케이드 시뮬레이션 (연쇄 예측)</summary>
-        private int SimulateCascade(HashSet<(int, int)> removedPositions, out int totalAdditionalDrops)
+        /// <summary>복제된 보드에서 연쇄 시뮬레이션 (원본 영향 없음)</summary>
+        private int SimulateCascade(Board simBoard, MatchFinder simFinder, CascadeHandler simCascade,
+            HashSet<(int, int)> removedPositions, out int totalAdditionalDrops)
         {
-            // 이 함수를 위해 보드의 복사본에서 시뮬레이션해야 하지만,
-            // C# struct 복사보다는 임시 Clear/복원 방식 사용
-
             int chainLevel = 0;
             totalAdditionalDrops = 0;
 
-            // 이미 제거된 위치를 보드에 반영
+            // 이미 제거된 위치를 복제 보드에 반영
             foreach (var (r, c) in removedPositions)
             {
-                if (!_board.IsEmpty(r, c))
-                    _board.ClearTile(r, c);
+                if (!simBoard.IsEmpty(r, c))
+                    simBoard.ClearTile(r, c);
             }
-
-            var cascadeFinder = new MatchFinder(_board);
-            var cascadeHandler = new CascadeHandler(_board);
 
             int safetyCounter = 0;
             while (true)
             {
-                // 중력 적용
-                cascadeHandler.ApplyGravity();
+                simCascade.ApplyGravity();
+                simCascade.FillEmptySpaces();
 
-                // 새 타일 채우기
-                cascadeHandler.FillEmptySpaces();
-
-                // 매치 확인
-                var newMatches = cascadeFinder.FindAllMatches();
+                var newMatches = simFinder.FindAllMatches();
                 if (newMatches.Count == 0) break;
 
                 chainLevel++;
@@ -215,19 +206,18 @@ namespace Match3.Core
                 {
                     foreach (var pos in group.Tiles)
                     {
-                        if (!_board.IsEmpty(pos.Row, pos.Col))
+                        if (!simBoard.IsEmpty(pos.Row, pos.Col))
                         {
-                            _board.ClearTile(pos.Row, pos.Col);
+                            simBoard.ClearTile(pos.Row, pos.Col);
                             totalAdditionalDrops++;
                         }
                     }
                 }
 
                 safetyCounter++;
-                if (safetyCounter > 20) break; // 무한루프 방지
+                if (safetyCounter > 20) break;
             }
 
-            // 보드 복원은 호출한 쪽에서 Swap 원복할 때 같이 복원됨 (스왑 전 상태로 돌아감)
             return chainLevel;
         }
 
