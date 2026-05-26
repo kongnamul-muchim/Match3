@@ -150,6 +150,11 @@ namespace Match3.Unity
             }
         }
 
+        public void AnimateReshuffle(int rows, int cols, Action onComplete)
+        {
+            StartCoroutine(AnimateReshuffleRoutine(rows, cols, onComplete));
+        }
+
         // ── 힌트: 크기 펄스 + 한쪽만 움직임 ──
 
         private IEnumerator HintWiggleRoutine(List<TilePosition> positions)
@@ -494,5 +499,68 @@ namespace Match3.Unity
             onComplete?.Invoke();
         }
 
+        // ── 셔플 애니메이션 ──
+
+        private IEnumerator AnimateReshuffleRoutine(int rows, int cols, Action onComplete)
+        {
+            // 1. 모든 젬 흔들기 + 펄스 (0.3초)
+            float t = 0f;
+            float shakeDur = 0.3f;
+            while (t < shakeDur)
+            {
+                float intensity = 1f - t / shakeDur;
+                for (int r = 0; r < rows; r++)
+                {
+                    for (int c = 0; c < cols; c++)
+                    {
+                        var gem = _grid[r, c];
+                        if (gem == null) continue;
+                        float jitter = intensity * 0.08f;
+                        gem.transform.localPosition = GridToWorld(r, c)
+                            + new Vector3(
+                                (Mathf.PerlinNoise(t * 30f + r, c) - 0.5f) * jitter,
+                                (Mathf.PerlinNoise(r, t * 30f + c) - 0.5f) * jitter,
+                                0f);
+                        gem.transform.localScale = Vector3.one * (1f + intensity * 0.15f);
+                    }
+                }
+                t += Time.deltaTime;
+                yield return null;
+            }
+
+            // 2. 모든 젬 한번에 축소 (0.15초)
+            float shrinkDur = 0.15f;
+            t = 0f;
+            while (t < shrinkDur)
+            {
+                float scale = 1f - t / shrinkDur;
+                for (int r = 0; r < rows; r++)
+                {
+                    for (int c = 0; c < cols; c++)
+                    {
+                        var gem = _grid[r, c];
+                        if (gem == null) continue;
+                        gem.transform.localScale = Vector3.one * scale;
+                        gem.transform.position = GridToWorld(r, c);
+                    }
+                }
+                t += Time.deltaTime;
+                yield return null;
+            }
+
+            // 3. 기존 젬들 Pool에 반환
+            for (int r = 0; r < rows; r++)
+                for (int c = 0; c < cols; c++)
+                    if (_grid[r, c] != null)
+                    {
+                        _pool.Release(_grid[r, c]);
+                        _grid[r, c] = null;
+                    }
+
+            yield return null; // 한 프레임 쉼
+
+            // 4. onComplete → GameController에서 새 타일 생성 + UpdateTile 호출
+            onComplete?.Invoke();
+        }
     }
 }

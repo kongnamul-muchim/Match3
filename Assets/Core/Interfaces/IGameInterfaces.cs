@@ -13,6 +13,7 @@ namespace Match3.Core
         void AnimateNewTile(TilePosition pos, GemType type, System.Action onComplete);
         void ShowHint(List<TilePosition> positions);
         void ClearHighlights();
+        void AnimateReshuffle(int rows, int cols, System.Action onComplete);
     }
 
     /// <summary>입력 처리 인터페이스 (Unity 어댑터)</summary>

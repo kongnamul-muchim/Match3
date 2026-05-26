@@ -45,6 +45,7 @@ namespace Match3.Unity
         [Header("Hint")]
         [SerializeField] private Button _hintButton;
         [SerializeField] private Text _hintText;
+        private Text _shuffleText;
 
         [Header("Leaderboard")]
         [SerializeField] private InputField _nameInput;
@@ -116,6 +117,16 @@ namespace Match3.Unity
                 rt.anchoredPosition = new Vector2(0, 60);
             }
 
+            // 셔플 알림 텍스트
+            _shuffleText = CreateText("ShuffleText", Vector2.zero, "", 32, TextAnchor.MiddleCenter);
+            _shuffleText.gameObject.SetActive(false);
+            var srt = _shuffleText.GetComponent<RectTransform>();
+            srt.pivot = new Vector2(0.5f, 0.5f);
+            srt.anchorMin = new Vector2(0.5f, 0.5f);
+            srt.anchorMax = new Vector2(0.5f, 0.5f);
+            srt.anchoredPosition = Vector2.zero;
+            srt.sizeDelta = new Vector2(600, 100);
+
             // 리더보드 UI
             if (_leaderboardText == null)
                 CreateLeaderboardUI();
@@ -135,6 +146,7 @@ namespace Match3.Unity
             _gameController.Score.OnScoreChanged += OnScoreChanged;
             _gameController.OnChainCombo += OnChainCombo;
             _gameController.OnGameOver += OnCoreGameOver;
+            _gameController.OnBoardReshuffled += OnBoardReshuffled;
 
             if (_hintButton != null)
                 _hintButton.onClick.AddListener(OnHintButtonClicked);
@@ -185,6 +197,7 @@ namespace Match3.Unity
                 _gameController.Score.OnScoreChanged -= OnScoreChanged;
                 _gameController.OnChainCombo -= OnChainCombo;
                 _gameController.OnGameOver -= OnCoreGameOver;
+                _gameController.OnBoardReshuffled -= OnBoardReshuffled;
 
                 var input = _gameController.Input as UnityInputHandler;
                 if (input != null)
@@ -263,6 +276,24 @@ namespace Match3.Unity
                 _gameController.StartGame();
                 ResetGame();
             }
+        }
+
+        // ── 셔플 ──
+
+        private void OnBoardReshuffled()
+        {
+            if (_shuffleText == null) return;
+            _shuffleText.text = "♻️ 이동할 수 있는 블럭이 없습니다!\n보드를 자동으로 셔플합니다...";
+            _shuffleText.gameObject.SetActive(true);
+
+            CancelInvoke(nameof(HideShuffleText));
+            Invoke(nameof(HideShuffleText), 2f);
+        }
+
+        private void HideShuffleText()
+        {
+            if (_shuffleText != null)
+                _shuffleText.gameObject.SetActive(false);
         }
 
         // ── 힌트 ──

@@ -24,6 +24,10 @@ namespace Match3.Core
 
         public event Action<int> OnChainCombo;
         public event Action OnGameOver;
+        public event Action OnBoardReshuffled; // 셔플 발생 시 UI 알림용
+
+        private int _reshuffleCount;
+        private const int MaxReshuffles = 3; // 3번 연속 셔플 후에도 이동 없으면 게임오버
 
         public GameController()
         {
@@ -42,12 +46,20 @@ namespace Match3.Core
             Board.Initialize();
             Score.Reset();
             State.Reset();
+            _reshuffleCount = 0;
             Renderer?.Initialize(Board.Rows, Board.Cols);
 
             // 초기 보드 렌더
             for (int r = 0; r < Board.Rows; r++)
                 for (int c = 0; c < Board.Cols; c++)
                     Renderer?.UpdateTile(r, c, Board[r, c].Type);
+
+            // 초기 보드에 유효한 이동이 없으면 자동 셔플
+            if (!MatchFinder.HasAnyValidMove())
+            {
+                AutoReshuffle();
+                return; // AutoReshuffle에서 Input을 enable함
+            }
 
             Input?.SetEnabled(true);
         }
@@ -100,11 +112,20 @@ namespace Match3.Core
                 State.ChangeState(GameState.Idle);
                 Input?.SetEnabled(true);
 
-                // 게임오버 체크
+                // 게임오버 체크 → 셔플로 대체
                 if (!MatchFinder.HasAnyValidMove())
                 {
-                    State.ChangeState(GameState.GameOver);
-                    OnGameOver?.Invoke();
+                    _reshuffleCount++;
+                    if (_reshuffleCount >= MaxReshuffles)
+                    {
+                        // N번 연속 셔플 후에도 없으면 진짜 게임오버
+                        State.ChangeState(GameState.GameOver);
+                        OnGameOver?.Invoke();
+                    }
+                    else
+                    {
+                        AutoReshuffle();
+                    }
                 }
                 return;
             }
@@ -157,6 +178,38 @@ namespace Match3.Core
                     // 추가 매치 확인 (연쇄!)
                     ProcessMatches(chainLevel + 1);
                 });
+            });
+        }
+
+        /// <summary>이동 가능한 보드가 나올 때까지 자동 셔플</summary>
+        private void AutoReshuffle()
+        {
+            State.ChangeState(GameState.Cascading);
+            Input?.SetEnabled(false);
+
+            // 이동 불가 → 렌더러에 셔플 애니메이션 요청
+            Renderer?.AnimateReshuffle(Board.Rows, Board.Cols, () =>
+            {
+                // 새 타일로 보드 채우기 (매치 없이)
+                for (int r = 0; r < Board.Rows; r++)
+                {
+                    for (int c = 0; c < Board.Cols; c++)
+                    {
+                        var type = (GemType)new Random().Next((int)GemType.Count);
+                        Board.SetTile(r, c, type);
+                    }
+                }
+                Board.SyncPositions();
+
+                // 보드 전체 렌더 업데이트
+                for (int r = 0; r < Board.Rows; r++)
+                    for (int c = 0; c < Board.Cols; c++)
+                        Renderer?.UpdateTile(r, c, Board[r, c].Type);
+
+                // 셔플 후 다시 매치 제거
+                // (셔플 과정에서 3연속이 생길 수 있으므로 ProcessMatches로 처리)
+                OnBoardReshuffled?.Invoke();
+                ProcessMatches();
             });
         }
 
